@@ -1,0 +1,43 @@
+# ~/software/vasp-mace/pyproject.toml
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vasp-mace"
+version = "0.1.0"
+description = "A minimal VASP-like front-end using MACE (ASE+PyTorch) for relaxations"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "Ricardo Grau-Crespo" }
+]
+license = { text = "MIT" }
+
+# Runtime deps (adjust versions to your env if needed)
+dependencies = [
+  "ase>=3.22.1",
+  "torch>=2.2",
+  "mace-torch>=0.3.6",
+  # Optional but useful if you ever switch to hub downloads:
+  # "huggingface_hub>=0.22"
+]
+
+[project.scripts]
+# This creates the shell command `vasp-mace`
+vasp-mace = "vasp_mace.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["vasp_mace*"]
+
+[tool.setuptools]
+include-package-data = true
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "black",
+  "ruff",
+  "mypy",
+]

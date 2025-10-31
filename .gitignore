@@ -1,0 +1,19 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+*.egg-info/
+build/
+dist/
+
+# Logs and outputs
+*.log
+*.traj
+*.out
+
+# IDE and OS files
+.DS_Store
+.vscode/
+.idea/
+
