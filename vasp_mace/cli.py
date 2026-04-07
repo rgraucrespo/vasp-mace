@@ -14,13 +14,15 @@ from .io_vasp import (
     write_outcar_like,
     write_contcar,
     write_relax_vasprun_xml,
-    write_single_vasprun_xml
+    write_single_vasprun_xml,
 )
 
 from .mace_loader import load_calc
 from .relax import run_relax
+from .md import run_md
 import numpy as np
 from types import SimpleNamespace
+
 
 def main():
     ap = argparse.ArgumentParser(description="Minimal VASP-like MACE simulator")
@@ -30,27 +32,38 @@ def main():
     )
     ap.add_argument("--model", default=DEFAULT_MODEL,
                     help=f"Path to MACE .model checkpoint (default: {DEFAULT_MODEL} or $MACE_MODEL_PATH)")
-    ap.add_argument("--device", default="auto", choices=["auto","cpu","mps"])
-    ap.add_argument("--dtype", default="auto", choices=["auto","float32","float64"])
-    ap.add_argument("--optimizer", default="BFGS", choices=["BFGS","FIRE"])
+    ap.add_argument("--device", default="auto", choices=["auto", "cpu", "mps"])
+    ap.add_argument("--dtype", default="auto", choices=["auto", "float32", "float64"])
+    ap.add_argument("--optimizer", default="BFGS", choices=["BFGS", "FIRE", "LBFGS"])
     args = ap.parse_args()
 
-    # Read inputs first so NSW decides the mode
+    # Read inputs first so NSW/IBRION decides the mode
     cfg = parse_incar("INCAR")
     atoms = read_poscar("POSCAR")
 
-    # Load calculator
-    calc, device, dtype = load_calc(args.model, device=args.device, dtype=args.dtype)
+    # Load calculator; IVDW > 0 enables empirical dispersion (DFT-D3)
+    dispersion = cfg.IVDW > 0
+    calc, device, dtype = load_calc(args.model, device=args.device, dtype=args.dtype,
+                                    dispersion=dispersion)
     atoms.calc = calc
 
+    # --- IBRION=0: MD mode ---
+    if cfg.IBRION == 0:
+        print(
+            f"[info] Model={args.model}, device={device}, dtype={dtype}, "
+            f"MDALGO={cfg.MDALGO}, NSW={cfg.NSW}, TEBEG={cfg.TEBEG} K, "
+            f"POTIM={cfg.POTIM} fs, NBLOCK={cfg.NBLOCK}"
+        )
+        records = run_md(atoms, calc, cfg)
+        write_contcar("CONTCAR", atoms)
+        print(f"[done] MD complete ({len(records)} steps). Wrote XDATCAR, CONTCAR.")
+        return
 
-    # --- NSW logic: 0 => single-point; >0 => relaxation ---
-
+    # --- NSW=0: single-point ---
     if cfg.NSW <= 0:
-        # Single-point calculation
         energy = atoms.get_potential_energy()
         forces = atoms.get_forces()                # (N, 3) ndarray from ASE
-        f = np.asarray(forces, dtype=float)        # be defensive
+        f = np.asarray(forces, dtype=float)
         fmax = float(np.max(np.linalg.norm(f, axis=1)))
 
         stress = None
@@ -59,10 +72,8 @@ def main():
         except Exception:
             pass
 
-        # Write ShengBTE/Phonopy-compatible vasprun.xml
         write_single_vasprun_xml("vasprun.xml", atoms, forces=f, stress=stress, energy=energy)
 
-        # Tiny OUTCAR + OSZICAR for sanity (one “ionic” record)
         one = SimpleNamespace(n=1, energy=float(energy), dE=0.0, fmax=fmax)
         write_outcar_like("OUTCAR", atoms, [one], stress=stress)
         write_oszicar("OSZICAR", [one])
@@ -70,12 +81,16 @@ def main():
         print("[done] Single-point written (NSW=0): vasprun.xml, OUTCAR, OSZICAR")
         return
 
-    # Relaxation calculation (NSW >0)
+    # --- NSW > 0: relaxation ---
     pressure_GPa = cfg.PSTRESS * 0.1
-    print(f"[info] Model={args.model}, device={device}, dtype={dtype}, "
-      f"ISIF={cfg.ISIF}, NSW={cfg.NSW}, EDIFFG={cfg.EDIFFG}, "
-      f"PSTRESS={cfg.PSTRESS} kBar ({pressure_GPa:.3f} GPa)")
-    steps, converged = run_relax(atoms, calc, cfg, optimizer=args.optimizer, pressure_GPa=pressure_GPa)
+    print(
+        f"[info] Model={args.model}, device={device}, dtype={dtype}, "
+        f"ISIF={cfg.ISIF}, NSW={cfg.NSW}, EDIFFG={cfg.EDIFFG}, "
+        f"PSTRESS={cfg.PSTRESS} kBar ({pressure_GPa:.3f} GPa), "
+        f"IVDW={cfg.IVDW}"
+    )
+    steps, converged = run_relax(atoms, calc, cfg, optimizer=args.optimizer,
+                                 pressure_GPa=pressure_GPa)
 
     stress = None
     try:
@@ -90,5 +105,4 @@ def main():
 
     print("[done] Wrote OSZICAR, OUTCAR, CONTCAR, vasprun.xml")
     if not converged:
-        print("[note] Reached NSW without meeting convergence criterion.]")
-
+        print("[note] Reached NSW without meeting convergence criterion.")

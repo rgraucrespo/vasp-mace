@@ -3,8 +3,8 @@
 Cell/atomic relaxation driver for vasp-mace.
 
 - ISIF=2: relax atomic positions only (stress is still computed & logged).
-- ISIF=3: relax cell + atoms towards hydrostatic target pressure from INCAR:PSTRESS.
-- EDIFFG < 0: force-based stop. If ISIF=3 we ALSO require per-component |σ−pI| <= |EDIFFG|*NIONS/VOL.
+- ISIF=3: relax cell + atoms via UnitCellFilter towards hydrostatic target pressure (PSTRESS).
+- EDIFFG < 0: force-based stop; fmax includes cell DOF forces from UnitCellFilter.
 - EDIFFG > 0: energy-per-ion stop (plus a gentle force cap).
 
 Logging prints max|σ| and max|σ−pI| so PSTRESS runs are easy to diagnose.
@@ -12,16 +12,25 @@ Logging prints max|σ| and max|σ−pI| so PSTRESS runs are easy to diagnose.
 
 from __future__ import annotations
 
+import os
 import numpy as np
+
+ASE_OUT_DIR = "ase_files"
 from ase.optimize import BFGS, FIRE, LBFGS
 from ase.io.trajectory import Trajectory
 from ase.units import GPa
 
 # Prefer ase.filters (modern); fall back to older location if needed
 try:
-    from ase.filters import UnitCellFilter
+    from ase.filters import UnitCellFilter, ExpCellFilter
 except Exception:  # pragma: no cover
     from ase.constraints import UnitCellFilter  # very old ASE
+    try:
+        from ase.filters import ExpCellFilter
+    except Exception:
+        from ase.constraints import ExpCellFilter
+
+from ase.constraints import FixAtoms
 
 from .logging_utils import StepLogger
 
@@ -35,14 +44,20 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
     ----------
     atoms : ase.Atoms
     calc  : ASE calculator
-    cfg   : has attributes EDIFFG, NSW, ISIF
-    optimizer : str, one of {'BFGS','FIRE','LBFGS'}
+    cfg   : has attributes EDIFFG, NSW, ISIF, IBRION
+    optimizer : str, fallback optimizer name {'BFGS','FIRE','LBFGS'} used only when
+                IBRION was not explicitly set in the raw INCAR (i.e. 'IBRION' not in cfg.raw).
     pressure_GPa : float, hydrostatic target pressure (from PSTRESS in INCAR, converted to GPa)
     """
     atoms.calc = calc
 
-    # Optimizer selection
-    opt_name = (optimizer or "BFGS").upper()
+    # Optimizer selection: IBRION in raw INCAR takes precedence over --optimizer CLI flag
+    if "IBRION" in cfg.raw:
+        # IBRION drives optimizer: 1=LBFGS, 3=FIRE, 2=BFGS (default)
+        _ibrion_map = {1: "LBFGS", 2: "BFGS", 3: "FIRE"}
+        opt_name = _ibrion_map.get(cfg.IBRION, "BFGS")
+    else:
+        opt_name = (optimizer or "BFGS").upper()
     Optim = {"BFGS": BFGS, "FIRE": FIRE, "LBFGS": LBFGS}.get(opt_name, BFGS)
 
     # Map EDIFFG to stopping criteria
@@ -54,29 +69,39 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
         ediff_tol = cfg.EDIFFG    # eV per ion
 
     # Target object based on ISIF
-    if cfg.ISIF == 3:
+    if cfg.ISIF == 2:
+        # Relax positions only; cell fixed
+        target = atoms
+    elif cfg.ISIF == 3:
+        # Relax positions + full cell (shape + volume) — VASP ISIF=3.
+        # UnitCellFilter without hydrostatic_strain allows all 6 cell DOFs to change.
         target = UnitCellFilter(
             atoms,
-            scalar_pressure=pressure_GPa * GPa,  # ASE expects eV/Å^3; GPa constant converts
-            hydrostatic_strain=True,
+            scalar_pressure=pressure_GPa * GPa,
         )
-    elif cfg.ISIF == 2:
-        target = atoms
+    elif cfg.ISIF == 4:
+        # Relax positions + cell shape; volume is conserved — VASP ISIF=4
+        target = ExpCellFilter(atoms, constant_volume=True)
+    elif cfg.ISIF == 7:
+        # Volume only, positions fixed: add FixAtoms on top of any existing constraints
+        existing = list(atoms.constraints) if atoms.constraints else []
+        atoms.set_constraint(existing + [FixAtoms(indices=list(range(len(atoms))))])
+        target = UnitCellFilter(
+            atoms,
+            hydrostatic_strain=True,
+            scalar_pressure=pressure_GPa * GPa,
+        )
     else:
-        print(f"[warn] ISIF={cfg.ISIF} not supported; using ISIF=2.")
-        cfg.ISIF = 2
-        target = atoms
+        raise ValueError(
+            f"ISIF={cfg.ISIF} is not supported. "
+            f"Supported values: 2 (positions only), 3 (full cell+atoms), "
+            f"4 (cell shape+atoms, fixed volume), 7 (volume only, positions fixed)."
+        )
 
+    os.makedirs(ASE_OUT_DIR, exist_ok=True)
     logger = StepLogger()
-    traj = Trajectory("mace.traj", "w", atoms)
-    dyn = Optim(target, logfile="opt.log")  # ASE optimizer
-
-    # VASP-style stress tolerance (only relevant for ISIF=3 with EDIFFG<0)
-    stress_tol = None
-    if cfg.ISIF == 3 and ediff_tol is None:
-        nions = len(atoms)
-        vol = max(atoms.get_volume(), 1e-12)
-        stress_tol = f_tol * nions / vol  # eV/Å^3
+    traj = Trajectory(os.path.join(ASE_OUT_DIR, "mace.traj"), "w", atoms)
+    dyn = Optim(target, logfile=os.path.join(ASE_OUT_DIR, "opt.log"))
 
     converged = False
     for n in range(1, cfg.NSW + 1):
@@ -85,7 +110,14 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
 
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
-        rec = logger.log(n=n, energy=E, forces=F)
+        rec = logger.log(n=n, energy=E, forces=F)  # uses atomic forces for OSZICAR/OUTCAR
+
+        # fmax for convergence: use the optimizer's combined forces (includes cell DOFs
+        # for ISIF=3/4/7 via UnitCellFilter/ExpCellFilter) so the cell is not ignored.
+        if target is atoms:
+            fmax_opt = rec.fmax
+        else:
+            fmax_opt = float(np.max(np.linalg.norm(target.get_forces(), axis=1)))
 
         # Stress acquisition + PSTRESS target construction
         try:
@@ -97,39 +129,26 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
             max_sig = float(np.max(np.abs(stress)))
             max_err = float(np.max(np.abs(stress_err)))
             print(
-                f"[step {n}] Fmax={rec.fmax:.3f} eV/Å | "
+                f"[step {n}] Fmax={fmax_opt:.3f} eV/Å | "
                 f"max|σ|={max_sig:.3e} eV/Å³ ({max_sig*EV_A3_TO_GPA:.3f} GPa) | "
                 f"max|σ−pI|={max_err:.3e} eV/Å³ ({max_err*EV_A3_TO_GPA:.3f} GPa)"
             )
         except Exception:
-            stress = None
-            stress_err = None
-            print(f"[step {n}] Fmax={rec.fmax:.3f} eV/Å")
+            print(f"[step {n}] Fmax={fmax_opt:.3f} eV/Å")
 
         traj.write()
 
         # --- Convergence tests ---
         if ediff_tol is None:
-            # Force-based (EDIFFG < 0)
-            if cfg.ISIF == 2:
-                if rec.fmax <= f_tol:
-                    converged = True
-                    break
-            elif cfg.ISIF == 3:
-                # Require both forces and per-component stress error within tol
-                if stress_err is not None and stress_tol is not None:
-                    stress_ok = bool(np.all(np.abs(stress_err) <= stress_tol))
-                else:
-                    # If we cannot evaluate stress error, fall back to forces only
-                    stress_ok = (stress_tol is None)
-                if rec.fmax <= f_tol and stress_ok:
-                    converged = True
-                    break
+            # Force-based (EDIFFG < 0): fmax_opt includes cell DOF forces for cell relaxations
+            if fmax_opt <= f_tol:
+                converged = True
+                break
         else:
             # Energy-per-ion (EDIFFG > 0) + a gentle force cap
             ions = max(len(atoms), 1)
             dE_per_ion = abs(rec.dE) / ions
-            if dE_per_ion <= ediff_tol and rec.fmax <= f_tol:
+            if dE_per_ion <= ediff_tol and fmax_opt <= f_tol:
                 converged = True
                 break
 
