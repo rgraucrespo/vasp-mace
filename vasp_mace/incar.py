@@ -37,7 +37,12 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
     tebeg   = _to_float(raw.get("TEBEG",   0.0),  0.0)
     teend   = _to_float(raw.get("TEEND",  -1.0), -1.0)
     potim   = _to_float(raw.get("POTIM",   0.5),  0.5)
+    if potim <= 0:
+        raise ValueError(f"POTIM must be positive, got {potim}")
     nblock  = _to_int(raw.get("NBLOCK",  1),    1)
+    if nblock < 1:
+        print(f"[warn] NBLOCK={nblock} is invalid. Setting to 1.")
+        nblock = 1
     mdalgo  = _to_int(raw.get("MDALGO",  2),    2)
     smass   = _to_float(raw.get("SMASS",  -3.0), -3.0)
 

@@ -1,4 +1,4 @@
-import os, warnings, logging
+import os, sys, warnings, logging
 os.environ.pop("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", None)
 warnings.filterwarnings("ignore", message=r"Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected.*")
 warnings.filterwarnings("ignore", category=UserWarning, module=r"e3nn\.o3\._wigner")
@@ -25,6 +25,14 @@ from types import SimpleNamespace
 
 
 def main():
+    try:
+        _run()
+    except Exception as e:
+        print(f"[error] {e}")
+        sys.exit(1)
+
+
+def _run():
     ap = argparse.ArgumentParser(description="Minimal VASP-like MACE simulator")
     DEFAULT_MODEL = os.environ.get(
         "MACE_MODEL_PATH",

@@ -20,6 +20,19 @@ It reads VASP-style inputs (`POSCAR`, `INCAR`) and produces VASP-compatible outp
 - VASP-compatible output written to the run directory: `CONTCAR`, `OUTCAR`, `OSZICAR`, `XDATCAR`, `vasprun.xml`
 - ASE trajectory and log written to `ase_files/` subdirectory, keeping the run directory clean
 
+## When would you use this?
+
+For most workflows, a pure Python/ASE script is the better way to run MACE — more flexible, easier to customise, no file overhead. `vasp-mace` is not trying to compete with that.
+
+It exists for the cases where VASP-style files are what you already have or what you need:
+
+- You have a set of `POSCAR`/`INCAR` files from a previous VASP project and want a quick MACE relaxation without rewriting any input.
+- You are using an external code that reads VASP output — `vasprun.xml` for Phonopy or ShengBTE, `CONTCAR` for a downstream workflow — and you want MACE to slot in transparently.
+- You are comparing MACE results against VASP calculations and prefer to keep the input/output format identical to reduce variables.
+- You are simply too fond of VASP files to let go, and that is a perfectly valid reason.
+
+Whatever brings you here, enjoy `vasp-mace`.
+
 ---
 
 ## Installation

@@ -1,16 +1,6 @@
-import time
-from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import List
 import numpy as np
-
-@contextmanager
-def timer(label=""):
-    t0 = time.time()
-    yield
-    dt = time.time() - t0
-    print(f"[time] {label}: {dt:.3f}s")
-
 
 @dataclass
 class StepRecord:

@@ -1,5 +1,3 @@
-import torch
-from mace.calculators.mace import MACECalculator
 import io
 import warnings
 import logging
@@ -17,6 +15,10 @@ def _silenced_import_mace():
     return MACECalculator
 
 def load_calc(model_path: str, device: str = "auto", dtype: str = "auto", dispersion: bool = False):
+    import os
+    if not os.path.isfile(model_path):
+        raise FileNotFoundError(f"MACE model file not found: {model_path}")
+
     # Default to CPU/float64 for robustness on macOS (MPS lacks float64)
     if device == "auto":
         device = "cpu"

@@ -19,14 +19,6 @@ class IncarConfig:
 
 
 @dataclass
-class StepRecord:
-    n: int        # ionic step index (1-based)
-    energy: float # total E (eV)
-    dE: float     # delta E since previous ionic step (eV)
-    fmax: float   # max |F| (eV/Å)
-
-
-@dataclass
 class MDRecord:
     n: int              # step index (1-based)
     energy_pot: float   # potential energy (eV)
