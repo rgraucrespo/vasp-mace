@@ -1,6 +1,0 @@
-IBRION = 0
-MDALGO = 2
-NSW    = 50
-TEBEG  = 300
-POTIM  = 2.0
-NBLOCK = 1

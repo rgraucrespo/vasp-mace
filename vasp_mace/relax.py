@@ -33,6 +33,7 @@ except Exception:  # pragma: no cover
 from ase.constraints import FixAtoms
 
 from .logging_utils import StepLogger
+from .io_vasp import write_xdatcar_header, append_xdatcar_frame
 
 EV_A3_TO_GPA = 160.21766208  # 1 eV/Å^3 in GPa
 
@@ -102,6 +103,7 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
     logger = StepLogger()
     traj = Trajectory(os.path.join(ASE_OUT_DIR, "mace.traj"), "w", atoms)
     dyn = Optim(target, logfile=os.path.join(ASE_OUT_DIR, "opt.log"))
+    write_xdatcar_header("XDATCAR", atoms)
 
     converged = False
     for n in range(1, cfg.NSW + 1):
@@ -137,6 +139,7 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
             print(f"[step {n}] Fmax={fmax_opt:.3f} eV/Å")
 
         traj.write()
+        append_xdatcar_frame("XDATCAR", atoms, n)
 
         # --- Convergence tests ---
         if ediff_tol is None:

@@ -53,7 +53,6 @@ def write_contcar(path: str, atoms):
         direct=True,
         vasp5=True,
         sort=False,
-        selective_dynamics=("selective_dynamics" in atoms.arrays),
         ignore_constraints=False,
     )
 
