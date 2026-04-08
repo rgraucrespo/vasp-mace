@@ -92,11 +92,19 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
             hydrostatic_strain=True,
             scalar_pressure=pressure_GPa * GPa,
         )
+    elif cfg.ISIF == 8:
+        # Relax positions + volume; cell shape is fixed (isotropic scaling only)
+        target = UnitCellFilter(
+            atoms,
+            hydrostatic_strain=True,
+            scalar_pressure=pressure_GPa * GPa,
+        )
     else:
         raise ValueError(
             f"ISIF={cfg.ISIF} is not supported. "
             f"Supported values: 2 (positions only), 3 (full cell+atoms), "
-            f"4 (cell shape+atoms, fixed volume), 7 (volume only, positions fixed)."
+            f"4 (cell shape+atoms, fixed volume), 7 (volume only, positions fixed), "
+            f"8 (positions+volume, fixed shape)."
         )
 
     os.makedirs(ASE_OUT_DIR, exist_ok=True)

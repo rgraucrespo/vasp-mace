@@ -5,7 +5,7 @@ from typing import Dict
 class IncarConfig:
     EDIFFG: float      # <0 force tol (eV/Å); >0 energy tol (eV)
     NSW: int           # max ionic steps
-    ISIF: int          # 2 positions-only, 3 variable-cell, 4 shape+atoms, 7 volume-only
+    ISIF: int          # 2 positions-only, 3 variable-cell, 4 shape+atoms, 7 volume-only, 8 positions+volume
     PSTRESS: float     # pressure in kB
     IBRION: int        # -1 none, 0 MD, 1 LBFGS, 2 BFGS, 3 FIRE
     IVDW: int          # 0 none, 11 D3(zero), 12 D3(BJ), 13 D3(zero)+ATM, 14 D3(BJ)+ATM

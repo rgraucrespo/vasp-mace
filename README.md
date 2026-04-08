@@ -107,6 +107,7 @@ Only the tags relevant to `vasp-mace` are parsed; all others are silently ignore
 | `3` | relaxed | relaxed | relaxed |
 | `4` | relaxed | relaxed | fixed |
 | `7` | fixed | fixed | relaxed |
+| `8` | relaxed | fixed | relaxed |
 
 ### IVDW (DFT-D3 dispersion)
 
