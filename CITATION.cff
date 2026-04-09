@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: vasp-mace
+title: "vasp-mace: a VASP simulator based on the MACE machine-learning interatomic potential"
 message: "If you use this software, please cite it using the metadata below."
 type: software
 authors:
@@ -20,4 +20,4 @@ keywords:
   - VASP
   - atomistic simulation
   - materials science
-doi: 10.5281/zenodo.XXXXXXX
+doi: 10.5281/zenodo.19479246

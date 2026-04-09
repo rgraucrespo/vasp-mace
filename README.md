@@ -235,15 +235,15 @@ MIT License © 2025 Ricardo Grau-Crespo.
 If you use `vasp-mace` in your work, please cite:
 
 **vasp-mace:**
-- Grau-Crespo, R. *vasp-mace* (2025). Zenodo. https://doi.org/10.5281/zenodo.XXXXXXX
+- Grau-Crespo, R. *vasp-mace: a VASP simulator based on the MACE machine-learning interatomic potential* (2025). Zenodo. https://doi.org/10.5281/zenodo.19479246
 
 ```bibtex
 @software{graucrespo2025vaspmace,
   author  = {Grau-Crespo, Ricardo},
-  title   = {vasp-mace},
+  title   = {vasp-mace: a VASP simulator based on the MACE machine-learning interatomic potential},
   year    = {2025},
   url     = {https://github.com/rgraucrespo/vasp-mace},
-  doi     = {10.5281/zenodo.XXXXXXX},
+  doi     = {10.5281/zenodo.19479246},
 }
 ```
 
