@@ -561,8 +561,8 @@ def write_single_vasprun_xml(path: str, atoms, forces, stress=None, energy=None)
 # XDATCAR
 # -----------------------------------------------------------------------
 
-def write_xdatcar_header(path: str, atoms) -> None:
-    """Write the XDATCAR header (system name + lattice vectors + species counts)."""
+def _xdatcar_header_lines(atoms) -> str:
+    """Return the XDATCAR header block (title, scale, cell, species, counts)."""
     symbols = atoms.get_chemical_symbols()
     species = []
     counts = []
@@ -572,21 +572,38 @@ def write_xdatcar_header(path: str, atoms) -> None:
             counts.append(1)
         else:
             counts[-1] += 1
-
     cell = atoms.get_cell()
+    lines = []
+    lines.append(atoms.get_chemical_formula())
+    lines.append("   1.00000000")
+    for v in cell:
+        lines.append(f"  {v[0]: .9f}  {v[1]: .9f}  {v[2]: .9f}")
+    lines.append("  " + "  ".join(species))
+    lines.append("  " + "  ".join(str(c) for c in counts))
+    return "\n".join(lines) + "\n"
+
+
+def write_xdatcar_header(path: str, atoms) -> None:
+    """Write the XDATCAR header once (for MD / fixed-cell runs)."""
     with open(path, "w") as f:
-        f.write(f"{atoms.get_chemical_formula()}\n")
-        f.write("   1.00000000\n")
-        for v in cell:
-            f.write(f"  {v[0]: .9f}  {v[1]: .9f}  {v[2]: .9f}\n")
-        f.write("  " + "  ".join(species) + "\n")
-        f.write("  " + "  ".join(str(c) for c in counts) + "\n")
+        f.write(_xdatcar_header_lines(atoms))
 
 
-def append_xdatcar_frame(path: str, atoms, step: int) -> None:
-    """Append one frame of fractional coordinates to XDATCAR."""
+def append_xdatcar_frame(path: str, atoms, step: int,
+                         update_header: bool = False) -> None:
+    """Append one frame of fractional coordinates to XDATCAR.
+
+    Parameters
+    ----------
+    update_header : bool
+        If True, prepend the full lattice header before the configuration line.
+        Must be True for cell-relaxing runs (ISIF >= 3) so each frame carries
+        the current cell vectors, matching real VASP XDATCAR format.
+    """
     scaled = atoms.get_scaled_positions()
     with open(path, "a") as f:
+        if update_header:
+            f.write(_xdatcar_header_lines(atoms))
         f.write(f"Direct configuration=     {step}\n")
         for pos in scaled:
             f.write(f"  {pos[0]: .9f}  {pos[1]: .9f}  {pos[2]: .9f}\n")

@@ -111,7 +111,15 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
     logger = StepLogger()
     traj = Trajectory(os.path.join(ASE_OUT_DIR, "mace.traj"), "w", atoms)
     dyn = Optim(target, logfile=os.path.join(ASE_OUT_DIR, "opt.log"))
-    write_xdatcar_header("XDATCAR", atoms)
+
+    # For cell-relaxing runs (ISIF >= 3), the cell changes at each step so
+    # the XDATCAR header must be repeated per frame (VASP convention).
+    # For positions-only (ISIF == 2), write the header once up front.
+    cell_relaxing = cfg.ISIF != 2
+    if not cell_relaxing:
+        write_xdatcar_header("XDATCAR", atoms)
+    else:
+        open("XDATCAR", "w").close()   # create/truncate; frames will self-contain headers
 
     converged = False
     for n in range(1, cfg.NSW + 1):
@@ -147,7 +155,7 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
             print(f"[step {n}] Fmax={fmax_opt:.3f} eV/Å")
 
         traj.write()
-        append_xdatcar_frame("XDATCAR", atoms, n)
+        append_xdatcar_frame("XDATCAR", atoms, n, update_header=cell_relaxing)
 
         # --- Convergence tests ---
         if ediff_tol is None:
