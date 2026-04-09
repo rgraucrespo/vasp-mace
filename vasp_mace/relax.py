@@ -120,7 +120,7 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
 
         E = atoms.get_potential_energy()
         F = atoms.get_forces()
-        rec = logger.log(n=n, energy=E, forces=F)  # uses atomic forces for OSZICAR/OUTCAR
+        rec = logger.log(n=n, energy=E, forces=F, atoms=atoms)
 
         # fmax for convergence: use the optimizer's combined forces (includes cell DOFs
         # for ISIF=3/4/7 via UnitCellFilter/ExpCellFilter) so the cell is not ignored.

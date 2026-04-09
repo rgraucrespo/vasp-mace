@@ -1,4 +1,4 @@
-import os, sys, warnings, logging
+import os, sys, warnings, logging, time
 os.environ.pop("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", None)
 warnings.filterwarnings("ignore", message=r"Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected.*")
 warnings.filterwarnings("ignore", category=UserWarning, module=r"e3nn\.o3\._wigner")
@@ -7,21 +7,21 @@ for name in ("cuequivariance", "cuequivariance_torch", "e3nn", "mace"):
     logging.getLogger(name).setLevel(logging.ERROR)
 
 import argparse
+import numpy as np
 from .incar import parse_incar
 from .io_vasp import (
     read_poscar,
     write_oszicar,
+    write_outcar,
     write_outcar_like,
     write_contcar,
     write_relax_vasprun_xml,
     write_single_vasprun_xml,
 )
-
+from .logging_utils import StepRecord
 from .mace_loader import load_calc
 from .relax import run_relax
 from .md import run_md
-import numpy as np
-from types import SimpleNamespace
 
 
 def main():
@@ -69,21 +69,35 @@ def _run():
 
     # --- NSW=0: single-point ---
     if cfg.NSW <= 0:
+        t0_wall = time.time()
+        t0_cpu  = time.process_time()
+
         energy = atoms.get_potential_energy()
-        forces = atoms.get_forces()                # (N, 3) ndarray from ASE
+        forces = atoms.get_forces()
         f = np.asarray(forces, dtype=float)
         fmax = float(np.max(np.linalg.norm(f, axis=1)))
 
         stress = None
         try:
-            stress = atoms.get_stress(voigt=True).tolist()  # 6 comps in eV/Å^3
+            stress = atoms.get_stress(voigt=True).tolist()
         except Exception:
             pass
 
+        elapsed = time.time()         - t0_wall
+        cpu_t   = time.process_time() - t0_cpu
+
         write_single_vasprun_xml("vasprun.xml", atoms, forces=f, stress=stress, energy=energy)
 
-        one = SimpleNamespace(n=1, energy=float(energy), dE=0.0, fmax=fmax)
-        write_outcar_like("OUTCAR", atoms, [one], stress=stress)
+        sv = np.array(stress) if stress is not None else None
+        one = StepRecord(
+            n=1, energy=float(energy), dE=float(energy), fmax=fmax,
+            positions=atoms.get_positions().copy(),
+            forces=f.copy(),
+            stress=sv,
+            cell=np.array(atoms.get_cell()).copy(),
+        )
+        write_outcar("OUTCAR", atoms, [one], incar_raw=cfg.raw,
+                     converged=True, elapsed=elapsed, cpu_time=cpu_t)
         write_oszicar("OSZICAR", [one])
 
         print("[done] Single-point written (NSW=0): vasprun.xml, OUTCAR, OSZICAR")
@@ -97,19 +111,23 @@ def _run():
         f"PSTRESS={cfg.PSTRESS} kBar ({pressure_GPa:.3f} GPa), "
         f"IVDW={cfg.IVDW}"
     )
+
+    atoms_initial = atoms.copy()  # snapshot before relaxation for vasprun.xml initialpos
+
+    t0_wall = time.time()
+    t0_cpu  = time.process_time()
+
     steps, converged = run_relax(atoms, calc, cfg, optimizer=args.optimizer,
                                  pressure_GPa=pressure_GPa)
 
-    stress = None
-    try:
-        stress = atoms.get_stress(voigt=True).tolist()  # 6 comps in eV/Å^3
-    except Exception:
-        pass
+    elapsed = time.time()         - t0_wall
+    cpu_t   = time.process_time() - t0_cpu
 
-    write_outcar_like("OUTCAR", atoms, steps, stress=stress)
+    write_outcar("OUTCAR", atoms, steps, incar_raw=cfg.raw,
+                 converged=converged, elapsed=elapsed, cpu_time=cpu_t)
     write_oszicar("OSZICAR", steps)
     write_contcar("CONTCAR", atoms)
-    write_relax_vasprun_xml("vasprun.xml", atoms, steps)
+    write_relax_vasprun_xml("vasprun.xml", atoms_initial, atoms, steps, incar_raw=cfg.raw)
 
     print("[done] Wrote OSZICAR, OUTCAR, CONTCAR, vasprun.xml")
     if not converged:
