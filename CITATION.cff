@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+title: vasp-mace
+message: "If you use this software, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Grau-Crespo
+    given-names: Ricardo
+repository-code: https://github.com/rgraucrespo/vasp-mace
+license: MIT
+abstract: >-
+  VASP-like interface for structure relaxation, molecular dynamics, and
+  energy calculations using MACE machine-learning interatomic potentials.
+  Reads POSCAR/INCAR inputs and produces CONTCAR, OUTCAR, OSZICAR, XDATCAR,
+  and vasprun.xml outputs compatible with standard VASP post-processing tools.
+keywords:
+  - MACE
+  - machine learning potentials
+  - molecular dynamics
+  - geometry relaxation
+  - VASP
+  - atomistic simulation
+  - materials science
+doi: 10.5281/zenodo.XXXXXXX

@@ -234,5 +234,25 @@ MIT License © 2025 Ricardo Grau-Crespo.
 
 If you use `vasp-mace` in your work, please cite:
 
-- Batatia et al., *MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields*, NeurIPS 2022
-- Batatia et al., *A foundation model for atomistic materials chemistry*, arXiv:2401.00096 (2024)
+**vasp-mace:**
+- Grau-Crespo, R. *vasp-mace* (2025). Zenodo. https://doi.org/10.5281/zenodo.XXXXXXX
+
+```bibtex
+@software{graucrespo2025vaspmace,
+  author  = {Grau-Crespo, Ricardo},
+  title   = {vasp-mace},
+  year    = {2025},
+  url     = {https://github.com/rgraucrespo/vasp-mace},
+  doi     = {10.5281/zenodo.XXXXXXX},
+}
+```
+
+**MACE potentials:**
+- Batatia, I.; Kovács, D. P.; Simm, G. N. C.; Ortner, C.; Csányi, G. “MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields”. Advances in Neural Information Processing Systems (NeurIPS), 2022.
+- Batatia, I. et al. “A foundation model for atomistic materials chemistry.” The Journal of Chemical Physics 163, no. 18 (2025).
+
+**VASP** (if referring to specific VASP formats or comparing against VASP results):
+- Kresse, G.; Furthmüller, J. “Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set.” Computational Materials Science 6 (1996) 15–50.
+- Kresse, G.; Furthmüller, J. “Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set.” Physical Review B 54 (1996) 11169–11186.
+
+
