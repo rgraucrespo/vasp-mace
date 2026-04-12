@@ -3,4 +3,4 @@
 vasp_mace: A minimal VASP-like front-end using MACE potentials.
 """
 
-__version__ = "0.1.0"
+__version__ = "1.2.1"

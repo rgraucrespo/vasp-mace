@@ -5,8 +5,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vasp-mace"
-version = "0.1.0"
-description = "A minimal VASP-like front-end using MACE (ASE+PyTorch) for relaxations"
+version = "1.2.1"
+description = "A minimal VASP-like front-end using MACE"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
