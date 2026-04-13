@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Optional
 import xml.etree.ElementTree as ET
 import numpy as np
@@ -10,6 +11,26 @@ from .logging_utils import StepRecord
 # Unit conversion
 # -----------------------------------------------------------------------
 _EV_A3_TO_KB = 1602.1766   # 1 eV/Å³  →  kBar
+
+
+# -----------------------------------------------------------------------
+# INCAR parameter helpers (used by both relax and single-point XML writers)
+# -----------------------------------------------------------------------
+
+def _ri(raw: dict, key: str, default: int) -> int:
+    """Read an integer INCAR value with a fallback default."""
+    try:
+        return int(raw.get(key, default))
+    except (ValueError, TypeError):
+        return default
+
+
+def _rf(raw: dict, key: str, default: float) -> float:
+    """Read a float INCAR value with a fallback default."""
+    try:
+        return float(raw.get(key, default))
+    except (ValueError, TypeError):
+        return default
 
 
 # -----------------------------------------------------------------------
@@ -358,8 +379,6 @@ def write_relax_vasprun_xml(
     <structure name='initialpos'>, per-step <calculation>, and
     <structure name='finalpos'>.
     """
-    import datetime
-
     root = ET.Element("modeling")
 
     # ---- generator ----
@@ -387,25 +406,17 @@ def write_relax_vasprun_xml(
 
     # ---- parameters (pymatgen needs at least NELM, IBRION, NSW, EDIFFG) ----
     raw = incar_raw or {}
-    # Helper to get int from raw or default
-    def _ri(key, default):
-        try: return int(raw.get(key, default))
-        except: return default
-    def _rf(key, default):
-        try: return float(raw.get(key, default))
-        except: return default
-
     params_el = ET.SubElement(root, "parameters")
     sep_elec = ET.SubElement(params_el, "separator", attrib={"name": "electronic"})
-    ET.SubElement(sep_elec, "i", attrib={"type": "int",     "name": "NELM"}).text    = f"   {_ri('NELM', 60)}"
+    ET.SubElement(sep_elec, "i", attrib={"type": "int",     "name": "NELM"}).text    = f"   {_ri(raw, 'NELM', 60)}"
     ET.SubElement(sep_elec, "i", attrib={"type": "logical", "name": "LCHIMAG"}).text = " F  "
-    ET.SubElement(sep_elec, "i", attrib={               "name": "EDIFF"}).text       = f"      {_rf('EDIFF', 1e-4):.8f}"
+    ET.SubElement(sep_elec, "i", attrib={               "name": "EDIFF"}).text       = f"      {_rf(raw, 'EDIFF', 1e-4):.8f}"
     sep_ion  = ET.SubElement(params_el, "separator", attrib={"name": "ionic"})
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "NSW"}).text     = f"   {_ri('NSW', 0)}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "IBRION"}).text  = f"   {_ri('IBRION', -1)}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "ISIF"}).text    = f"   {_ri('ISIF', 2)}"
-    ET.SubElement(sep_ion,  "i", attrib={               "name": "EDIFFG"}).text      = f"      {_rf('EDIFFG', -0.05):.8f}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "LORBIT"}).text  = f"   {_ri('LORBIT', 0)}"
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "NSW"}).text     = f"   {_ri(raw, 'NSW', 0)}"
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "IBRION"}).text  = f"   {_ri(raw, 'IBRION', -1)}"
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "ISIF"}).text    = f"   {_ri(raw, 'ISIF', 2)}"
+    ET.SubElement(sep_ion,  "i", attrib={               "name": "EDIFFG"}).text      = f"      {_rf(raw, 'EDIFFG', -0.05):.8f}"
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "LORBIT"}).text  = f"   {_ri(raw, 'LORBIT', 0)}"
 
     # ---- atominfo ----
     symbols = atoms.get_chemical_symbols()
@@ -522,36 +533,151 @@ def write_relax_vasprun_xml(
 # vasprun.xml — single-point
 # -----------------------------------------------------------------------
 
-def write_single_vasprun_xml(path: str, atoms, forces, stress=None, energy=None) -> None:
-    """Write a minimal VASP-compatible vasprun.xml for a single-point calculation."""
-    root = ET.Element("modeling")
-    calc = ET.SubElement(root, "calculation")
+def write_single_vasprun_xml(
+    path: str,
+    atoms,
+    forces,
+    stress=None,
+    energy=None,
+    incar_raw: Optional[dict] = None,
+) -> None:
+    """Write a VASP-compatible vasprun.xml for a single-point calculation.
 
+    Follows the same root-level structure as write_relax_vasprun_xml and the
+    real VASP output (set4 reference): generator → incar → parameters →
+    atominfo → structure[initialpos] → calculation → structure[finalpos].
+    """
+    root = ET.Element("modeling")
+
+    # ---- generator ----
+    gen = ET.SubElement(root, "generator")
+    now = datetime.datetime.now()
+    for name, typ, val in [
+        ("program",  "string", "vasp "),
+        ("version",  "string", "mace-ase  "),
+        ("platform", "string", "mace-ase"),
+        ("date",     "string", now.strftime("%Y %m %d")),
+        ("time",     "string", now.strftime("%H:%M:%S")),
+    ]:
+        ET.SubElement(gen, "i", attrib={"name": name, "type": typ}).text = val
+
+    # ---- incar ----
+    if incar_raw:
+        incar_el = ET.SubElement(root, "incar")
+        for k, v_str in incar_raw.items():
+            typ, val = _incar_xml_type_val(v_str)
+            attrib = {"name": k}
+            if typ is not None:
+                attrib["type"] = typ
+            ET.SubElement(incar_el, "i", attrib=attrib).text = val
+
+    # ---- parameters (pymatgen needs at least NELM, IBRION, NSW, EDIFFG) ----
+    raw = incar_raw or {}
+    params_el = ET.SubElement(root, "parameters")
+    sep_elec = ET.SubElement(params_el, "separator", attrib={"name": "electronic"})
+    ET.SubElement(sep_elec, "i", attrib={"type": "int",     "name": "NELM"}).text    = f"   {_ri(raw, 'NELM', 60)}"
+    ET.SubElement(sep_elec, "i", attrib={"type": "logical", "name": "LCHIMAG"}).text = " F  "
+    ET.SubElement(sep_elec, "i", attrib={               "name": "EDIFF"}).text       = f"      {_rf(raw, 'EDIFF', 1e-4):.8f}"
+    sep_ion  = ET.SubElement(params_el, "separator", attrib={"name": "ionic"})
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "NSW"}).text     = f"   {_ri(raw, 'NSW', 0)}"
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "IBRION"}).text  = f"   {_ri(raw, 'IBRION', -1)}"
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "ISIF"}).text    = f"   {_ri(raw, 'ISIF', 2)}"
+    ET.SubElement(sep_ion,  "i", attrib={               "name": "EDIFFG"}).text      = f"      {_rf(raw, 'EDIFFG', -0.05):.8f}"
+    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "LORBIT"}).text  = f"   {_ri(raw, 'LORBIT', 0)}"
+
+    # ---- atominfo ----
+    symbols = atoms.get_chemical_symbols()
+    masses  = atoms.get_masses()
+
+    seen_sp = {}
+    species_order = []
+    for sym in symbols:
+        if sym not in seen_sp:
+            seen_sp[sym] = len(seen_sp)
+            species_order.append(sym)
+
+    type_counts = [0] * len(species_order)
+    type_masses = {}
+    for sym, m in zip(symbols, masses):
+        type_counts[seen_sp[sym]] += 1
+        if sym not in type_masses:
+            type_masses[sym] = m
+
+    ainfo = ET.SubElement(root, "atominfo")
+    ET.SubElement(ainfo, "atoms").text = f"  {len(symbols):5d} "
+    ET.SubElement(ainfo, "types").text = f"  {len(species_order):5d} "
+
+    arr_atoms = ET.SubElement(ainfo, "array", attrib={"name": "atoms"})
+    ET.SubElement(arr_atoms, "dimension", attrib={"dim": "1"}).text = "ion"
+    ET.SubElement(arr_atoms, "field", attrib={"type": "string"}).text = "element"
+    ET.SubElement(arr_atoms, "field", attrib={"type": "int"}).text = "atomtype"
+    aset = ET.SubElement(arr_atoms, "set")
+    for sym in symbols:
+        rc = ET.SubElement(aset, "rc")
+        ET.SubElement(rc, "c").text = sym
+        ET.SubElement(rc, "c").text = f"   {seen_sp[sym]+1}"
+
+    arr_types = ET.SubElement(ainfo, "array", attrib={"name": "atomtypes"})
+    ET.SubElement(arr_types, "dimension", attrib={"dim": "1"}).text = "type"
+    ET.SubElement(arr_types, "field", attrib={"type": "int"}).text = "atomspertype"
+    ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = "element"
+    ET.SubElement(arr_types, "field").text = "mass"
+    ET.SubElement(arr_types, "field").text = "valence"
+    ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = "pseudopotential"
+    tset = ET.SubElement(arr_types, "set")
+    for sp in species_order:
+        rc = ET.SubElement(tset, "rc")
+        ET.SubElement(rc, "c").text = f"  {type_counts[seen_sp[sp]]:5d}"
+        ET.SubElement(rc, "c").text = sp
+        ET.SubElement(rc, "c").text = f"  {type_masses[sp]:16.8f}"
+        ET.SubElement(rc, "c").text = f"       0.00000000"
+        ET.SubElement(rc, "c").text = f"  PAW_PBE {sp} (MACE)                    "
+
+    # ---- initialpos at root level (before <calculation>) ----
     cell = np.array(atoms.get_cell())
-    struct = ET.SubElement(calc, "structure", attrib={"name": "initialpos"})
+    initpos = ET.SubElement(root, "structure", attrib={"name": "initialpos"})
+    _xml_crystal_block(initpos, cell)
+    _xml_positions_block(initpos, cell, atoms.get_positions())
+
+    # ---- calculation block ----
+    calc_el = ET.SubElement(root, "calculation")
+
+    # scstep (single MACE evaluation)
+    if energy is not None:
+        sc = ET.SubElement(calc_el, "scstep")
+        _xml_energy_block(sc, float(energy))
+
+    # structure inside calculation: no name attribute (matches VASP convention)
+    struct = ET.SubElement(calc_el, "structure")
     _xml_crystal_block(struct, cell)
     _xml_positions_block(struct, cell, atoms.get_positions())
 
-    farr = ET.SubElement(calc, "varray", attrib={"name": "forces"})
+    # forces: 16.8f fixed-point (matches relax writer and VASP format)
+    farr = ET.SubElement(calc_el, "varray", attrib={"name": "forces"})
     for fv in np.asarray(forces, dtype=float):
-        ET.SubElement(farr, "v").text = (f"  {float(fv[0]):.10e}"
-                                          f" {float(fv[1]):.10e}"
-                                          f" {float(fv[2]):.10e} ")
+        ET.SubElement(farr, "v").text = (f"  {float(fv[0]):16.8f}"
+                                          f" {float(fv[1]):16.8f}"
+                                          f" {float(fv[2]):16.8f} ")
 
     if stress is not None:
         mat = _stress_matrix_kB(np.asarray(stress))
-        sarr = ET.SubElement(calc, "varray", attrib={"name": "stress"})
+        sarr = ET.SubElement(calc_el, "varray", attrib={"name": "stress"})
         for row in mat:
             ET.SubElement(sarr, "v").text = (f"  {row[0]:16.8f}"
                                               f" {row[1]:16.8f}"
                                               f" {row[2]:16.8f} ")
 
     if energy is not None:
-        _xml_energy_block(calc, float(energy))
+        _xml_energy_block(calc_el, float(energy))
+
+    # ---- finalpos at root level (= initialpos for single-point) ----
+    finpos = ET.SubElement(root, "structure", attrib={"name": "finalpos"})
+    _xml_crystal_block(finpos, cell)
+    _xml_positions_block(finpos, cell, atoms.get_positions())
 
     tree = ET.ElementTree(root)
     try:
-        ET.indent(tree, space="  ")
+        ET.indent(tree, space=" ")
     except Exception:
         pass
     tree.write(path, encoding="utf-8", xml_declaration=True)

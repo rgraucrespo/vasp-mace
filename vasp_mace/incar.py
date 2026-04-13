@@ -1,4 +1,5 @@
 import os, re
+import numpy as np
 from .types_ import IncarConfig
 
 def _to_int(v, default):
@@ -10,6 +11,24 @@ def _to_int(v, default):
 def _to_float(v, default):
     try:
         return float(re.split(r"\s+", str(v).strip())[0])
+    except Exception:
+        return default
+
+def _to_bool(v, default: bool) -> bool:
+    s = str(v).strip().upper().strip(".")
+    if s in ("TRUE", "T"):
+        return True
+    if s in ("FALSE", "F"):
+        return False
+    return default
+
+def _to_float_list(v, default):
+    try:
+        # Split by any whitespace and filter out empty strings
+        parts = [p for p in re.split(r"\s+", str(v).strip()) if p]
+        if not parts:
+            return default
+        return [float(p) for p in parts]
     except Exception:
         return default
 
@@ -43,8 +62,18 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
     if nblock < 1:
         print(f"[warn] NBLOCK={nblock} is invalid. Setting to 1.")
         nblock = 1
-    mdalgo  = _to_int(raw.get("MDALGO",  2),    2)
+    mdalgo  = _to_int(raw.get("MDALGO",  3),    3)
+    andersen_prob = _to_float(raw.get("ANDERSEN_PROB", 0.0), 0.0)
     smass   = _to_float(raw.get("SMASS",  -3.0), -3.0)
+
+    # LANGEVIN_GAMMA: if not provided, use SMASS if SMASS > 0, else 10 ps^-1 (VASP-like)
+    # VASP default for LANGEVIN_GAMMA is actually 10.0 ps^-1 if MDALGO=3.
+    # If SMASS is provided, we use it for Langevin as well if LANGEVIN_GAMMA is missing.
+    lg_default = [smass] if smass > 0 else [10.0]
+    langevin_gamma = np.array(_to_float_list(raw.get("LANGEVIN_GAMMA", ""), lg_default))
+
+    # LANGEVIN_GAMMA_L: lattice friction for MDALGO=3, ISIF=3
+    langevin_gamma_l = _to_float(raw.get("LANGEVIN_GAMMA_L", 10.0), 10.0)
 
     # Coerce ISIF=0 → ISIF=2 (no cell relaxation, stress still computed)
     if isif == 0:
@@ -59,6 +88,10 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
             f"13 (D3-zero+ATM), 14 (D3-BJ+ATM)."
         )
 
+    images  = _to_int(raw.get("IMAGES",   0),     0)
+    spring  = _to_float(raw.get("SPRING", -5.0), -5.0)
+    lclimb  = _to_bool(raw.get("LCLIMB", False), False)
+
     return IncarConfig(
         EDIFFG=ediffg,
         NSW=nsw,
@@ -71,6 +104,12 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         POTIM=potim,
         NBLOCK=nblock,
         MDALGO=mdalgo,
+        ANDERSEN_PROB=andersen_prob,
+        LANGEVIN_GAMMA=langevin_gamma,
+        LANGEVIN_GAMMA_L=langevin_gamma_l,
         SMASS=smass,
+        IMAGES=images,
+        SPRING=spring,
+        LCLIMB=lclimb,
         raw=raw,
     )

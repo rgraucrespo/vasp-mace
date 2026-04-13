@@ -1,5 +1,6 @@
 cff-version: 1.2.0
 title: "vasp-mace: a VASP simulator based on the MACE machine-learning interatomic potential"
+version: "1.3.0"
 message: "If you use this software, please cite it using the metadata below."
 type: software
 authors:
@@ -21,3 +22,63 @@ keywords:
   - atomistic simulation
   - materials science
 doi: 10.5281/zenodo.19479246
+references:
+  - type: article
+    authors:
+      - family-names: Batatia
+        given-names: Ilyes
+      - family-names: Kovács
+        given-names: David P.
+      - family-names: Simm
+        given-names: Gregor N. C.
+      - family-names: Ortner
+        given-names: Christoph
+      - family-names: Csányi
+        given-names: Gábor
+    title: "MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields"
+    journal: "Advances in Neural Information Processing Systems"
+    year: 2022
+  - type: article
+    authors:
+      - family-names: Batatia
+        given-names: Ilyes
+      - family-names: Benner
+        given-names: Philipp
+      - family-names: Chiang
+        given-names: Yuan
+      - family-names: Elena
+        given-names: Alin M.
+      - family-names: Kovács
+        given-names: Dávid P.
+      - family-names: Riebesell
+        given-names: Janosh
+    title: "A foundation model for atomistic materials chemistry"
+    journal: "The Journal of Chemical Physics"
+    volume: 163
+    issue: 18
+    year: 2025
+    doi: 10.1063/5.0215750
+  - type: article
+    authors:
+      - family-names: Kresse
+        given-names: Georg
+      - family-names: Furthmüller
+        given-names: Jürgen
+    title: "Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set"
+    journal: "Computational Materials Science"
+    volume: 6
+    year: 1996
+    pages: 15-50
+    doi: 10.1016/0927-0256(96)00008-0
+  - type: article
+    authors:
+      - family-names: Kresse
+        given-names: Georg
+      - family-names: Furthmüller
+        given-names: Jürgen
+    title: "Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set"
+    journal: "Physical Review B"
+    volume: 54
+    year: 1996
+    pages: 11169-11186
+    doi: 10.1103/PhysRevB.54.11169

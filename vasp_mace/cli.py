@@ -20,7 +20,7 @@ from .io_vasp import (
 )
 from .logging_utils import StepRecord
 from .mace_loader import load_calc
-from .relax import run_relax
+from .relax import run_relax, EV_A3_TO_KBAR
 from .md import run_md
 
 
@@ -45,8 +45,30 @@ def _run():
     ap.add_argument("--optimizer", default="BFGS", choices=["BFGS", "FIRE", "LBFGS"])
     args = ap.parse_args()
 
-    # Read inputs first so NSW/IBRION decides the mode
     cfg = parse_incar("INCAR")
+
+    # --- IMAGES > 0: NEB mode -----------------------------------------------
+    # Must be checked before read_poscar: NEB has no top-level POSCAR;
+    # images live in 00/, 01/, … subdirectories.
+    if cfg.IMAGES > 0:
+        from .neb import run_neb
+        dispersion = cfg.IVDW > 0
+        n_total = cfg.IMAGES + 2
+        image_steps, converged = run_neb(
+            cfg, args.model,
+            device=args.device, dtype=args.dtype,
+            dispersion=dispersion,
+            optimizer=args.optimizer,
+        )
+        print(
+            f"[done] NEB complete. "
+            f"Wrote 00/ … {n_total - 1:02d}/ (CONTCAR, OUTCAR, OSZICAR, vasprun.xml)."
+        )
+        if not converged:
+            print("[note] Reached NSW without meeting NEB convergence criterion.")
+        return
+
+    # Non-NEB modes: read top-level POSCAR and load a single calculator
     atoms = read_poscar("POSCAR")
 
     # Load calculator; IVDW > 0 enables empirical dispersion (DFT-D3)
@@ -57,10 +79,19 @@ def _run():
 
     # --- IBRION=0: MD mode ---
     if cfg.IBRION == 0:
+        extra_info = ""
+        if cfg.MDALGO == 1:
+            extra_info = f", ANDERSEN_PROB={cfg.ANDERSEN_PROB}"
+        elif cfg.MDALGO == 2:
+            extra_info = f", SMASS={cfg.SMASS}"
+        elif cfg.MDALGO == 3:
+            gamma = cfg.LANGEVIN_GAMMA[0] if cfg.LANGEVIN_GAMMA.size > 0 else 10.0
+            extra_info = f", LANGEVIN_GAMMA={gamma} ps⁻¹"
+
         print(
             f"[info] Model={args.model}, device={device}, dtype={dtype}, "
             f"MDALGO={cfg.MDALGO}, NSW={cfg.NSW}, TEBEG={cfg.TEBEG} K, "
-            f"POTIM={cfg.POTIM} fs, NBLOCK={cfg.NBLOCK}"
+            f"POTIM={cfg.POTIM} fs, NBLOCK={cfg.NBLOCK}{extra_info}"
         )
         records = run_md(atoms, calc, cfg)
         write_contcar("CONTCAR", atoms)
@@ -86,7 +117,9 @@ def _run():
         elapsed = time.time()         - t0_wall
         cpu_t   = time.process_time() - t0_cpu
 
-        write_single_vasprun_xml("vasprun.xml", atoms, forces=f, stress=stress, energy=energy)
+        write_single_vasprun_xml("vasprun.xml", atoms, forces=f, stress=stress, energy=energy,
+                                 incar_raw=cfg.raw)
+        write_contcar("CONTCAR", atoms)
 
         sv = np.array(stress) if stress is not None else None
         one = StepRecord(
@@ -100,7 +133,12 @@ def _run():
                      converged=True, elapsed=elapsed, cpu_time=cpu_t)
         write_oszicar("OSZICAR", [one])
 
-        print("[done] Single-point written (NSW=0): vasprun.xml, OUTCAR, OSZICAR")
+        stress_str = ""
+        if stress is not None:
+            max_sig = float(np.max(np.abs(stress)))
+            stress_str = f", max|σ|={max_sig*EV_A3_TO_KBAR:.3f} kBar"
+
+        print(f"[done] Single-point written (NSW=0): E={energy:.6f} eV, Fmax={fmax:.3f} eV/Å{stress_str}")
         return
 
     # --- NSW > 0: relaxation ---

@@ -85,10 +85,11 @@ class LangevinNPT(MolecularDynamics):
         pos = atoms.get_positions()
         pos += dt * (v + self.v_eps * pos)
         atoms.set_positions(pos)
-        
+
         cell = atoms.get_cell()
         cell = cell * (1.0 + self.v_eps * dt)
         atoms.set_cell(cell, scale_atoms=False)
+        vol_new = atoms.get_volume()  # updated volume for second barostat half-step
 
         # 3. Update forces and stress
         f = atoms.get_forces(md=True)
@@ -97,7 +98,7 @@ class LangevinNPT(MolecularDynamics):
 
         # 4. Update velocities (second half step)
         v += 0.5 * dt * (f/m - self.friction * v + rnd_at - self.v_eps * v)
-        self.v_eps += 0.5 * dt * ((p_int - self.p_ext) * vol / self.W - self.gamma_L * self.v_eps + rnd_L)
+        self.v_eps += 0.5 * dt * ((p_int - self.p_ext) * vol_new / self.W - self.gamma_L * self.v_eps + rnd_L)
 
         atoms.set_velocities(v)
         return f
@@ -109,13 +110,16 @@ ASE_OUT_DIR = "ase_files"
 
 
 def run_md(atoms, calc, cfg):
-    """Run NVE or NVT Langevin/Andersen MD.
+    """Run NVE, NVT, or NPT molecular dynamics.
 
     Parameters
     ----------
     atoms : ase.Atoms
     calc  : ASE calculator (already attached to atoms by caller)
     cfg   : IncarConfig with IBRION=0 and MD-related fields
+            MDALGO=1 → NVE (VelocityVerlet) or NVT Andersen (ANDERSEN_PROB > 0)
+            MDALGO=2 → NVT Nosé-Hoover
+            MDALGO=3, ISIF=2 → NVT Langevin; ISIF=3 → NPT Langevin
 
     Returns
     -------
@@ -211,9 +215,9 @@ def run_md(atoms, calc, cfg):
         raise ValueError(f"MDALGO={cfg.MDALGO} is not supported. Use 1 (Andersen/NVE), 2 (Nose-Hoover), or 3 (Langevin).")
 
     # Write XDATCAR header
-    # For NPT (ISIF=3), the cell changes so the header is updated per frame.
-    # For others, write once.
-    cell_relaxing = (cfg.IBRION == 0 and cfg.ISIF == 3)
+    # For Langevin NPT (MDALGO=3, ISIF=3), the cell changes so the header is updated per frame.
+    # For all other MD modes (NVE, NVT), the cell is fixed — write the header once.
+    cell_relaxing = (cfg.MDALGO == 3 and cfg.ISIF == 3)
     if not cell_relaxing:
         write_xdatcar_header("XDATCAR", atoms)
     else:
@@ -252,7 +256,7 @@ def run_md(atoms, calc, cfg):
                 stress = atoms.get_stress(include_ideal_gas=True, voigt=True)
                 p_int = -np.mean(stress[:3])
                 stress_info = f" | P={p_int/GPa*10.0:.2f} kBar"
-            except:
+            except Exception:
                 pass
 
         print(

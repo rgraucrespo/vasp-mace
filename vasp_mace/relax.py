@@ -35,7 +35,7 @@ from ase.constraints import FixAtoms
 from .logging_utils import StepLogger
 from .io_vasp import write_xdatcar_header, append_xdatcar_frame
 
-EV_A3_TO_GPA = 160.21766208  # 1 eV/Å^3 in GPa
+EV_A3_TO_KBAR = 1602.1766208  # 1 eV/Å^3 in kBar
 
 
 def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0.0):
@@ -140,19 +140,22 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
         # Stress acquisition + PSTRESS target construction
         try:
             stress = atoms.get_stress(voigt=True)  # (6,) eV/Å^3  [xx, yy, zz, yz, xz, xy]
-            p_eva3 = pressure_GPa * GPa
-            target_voigt = np.array([-p_eva3, -p_eva3, -p_eva3, 0.0, 0.0, 0.0], dtype=float)
-            stress_err = np.asarray(stress, dtype=float) - target_voigt
+            if abs(pressure_GPa) > 1e-9:
+                p_eva3 = pressure_GPa * GPa
+                target_voigt = np.array([-p_eva3, -p_eva3, -p_eva3, 0.0, 0.0, 0.0], dtype=float)
+                stress_err = np.asarray(stress, dtype=float) - target_voigt
+                max_err = float(np.max(np.abs(stress_err)))
+                stress_str = f"max|σ-pI|={max_err*EV_A3_TO_KBAR:.3f} kBar"
+            else:
+                max_sig = float(np.max(np.abs(stress)))
+                stress_str = f"max|σ|={max_sig*EV_A3_TO_KBAR:.3f} kBar"
 
-            max_sig = float(np.max(np.abs(stress)))
-            max_err = float(np.max(np.abs(stress_err)))
             print(
-                f"[step {n}] Fmax={fmax_opt:.3f} eV/Å | "
-                f"max|σ|={max_sig:.3e} eV/Å³ ({max_sig*EV_A3_TO_GPA:.3f} GPa) | "
-                f"max|σ−pI|={max_err:.3e} eV/Å³ ({max_err*EV_A3_TO_GPA:.3f} GPa)"
+                f"[step {n}] E={rec.energy:.6f} eV | dE={rec.dE:.6e} eV | "
+                f"Fmax={fmax_opt:.3f} eV/Å | {stress_str}"
             )
         except Exception:
-            print(f"[step {n}] Fmax={fmax_opt:.3f} eV/Å")
+            print(f"[step {n}] E={rec.energy:.6f} eV | dE={rec.dE:.6e} eV | Fmax={fmax_opt:.3f} eV/Å")
 
         traj.write()
         append_xdatcar_frame("XDATCAR", atoms, n, update_header=cell_relaxing)
