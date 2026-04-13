@@ -6,7 +6,9 @@ Supports:
   Plain NEB:      LCLIMB = .FALSE. (default)
   Climbing-image: LCLIMB = .TRUE.  (CI-NEB)
 
-  SPRING sets the spring constant k = |SPRING| eV/Å² in both cases.
+  SPRING follows the VASP sign convention: negative values (SPRING < 0) indicate
+  NEB; the spring constant is k = |SPRING| eV/Å². Positive SPRING (non-nudged
+  elastic band) is not supported.
 
 Note on LCLIMB:
   LCLIMB is *not* a native VASP tag.  It is borrowed from the VTST Tools

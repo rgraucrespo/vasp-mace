@@ -136,17 +136,17 @@ If intermediate POSCARs are absent, all images are generated automatically by ID
 | Tag | Default | Description |
 |-----|---------|-------------|
 | `IMAGES` | `0` | Number of intermediate NEB images. `IMAGES ≥ 1` triggers NEB mode |
-| `SPRING` | `-5.0` | Spring constant magnitude (eV/Å²). Applied as `k = |SPRING|`; sign is ignored |
+| `SPRING` | `-5.0` | Spring constant for NEB (eV/Å²). Use negative values (`SPRING < 0`, VASP convention for NEB); the spring constant is `k = |SPRING|`. Positive values correspond to the non-nudged elastic band and are not supported |
 | `LCLIMB` | `.FALSE.` | Enable climbing-image NEB (CI-NEB). **Not a native VASP tag** — borrowed from the [VTST Tools](https://theory.cm.utexas.edu/vtsttools/neb.html) convention (see note below) |
 
 > **`LCLIMB` and VTST convention**: In VASP with the optional VTST extension, CI-NEB is activated by `LCLIMB = .TRUE.`. Native VASP (without VTST) does not recognise this tag and always runs plain NEB. `vasp-mace` follows the VTST convention so that INCAR files from VTST-enabled VASP work without modification.  
-> `SPRING` retains the VASP sign convention (`SPRING < 0` for NEB), but `vasp-mace` always uses `k = |SPRING|` regardless of sign. CI-NEB is controlled exclusively by `LCLIMB`, not by the sign of `SPRING`.
+> `SPRING` follows the VASP sign convention: negative values (`SPRING < 0`) indicate NEB, and the spring constant is `k = |SPRING|`. Positive values correspond to the non-nudged elastic band method and are not supported by `vasp-mace`. CI-NEB is controlled exclusively by `LCLIMB`, not by the sign of `SPRING`.
 
 ### Molecular dynamics (IBRION = 0)
 
 | Tag | Default | Description |
 |-----|---------|-------------|
-| `MDALGO` | `3` | `1` = NVE (VelocityVerlet or Andersen if `ANDERSEN_PROB > 0`); `2` = Nose-Hoover NVT thermostat; `3` = Langevin NVT (`ISIF=2`) or NPT (`ISIF=3`) |
+| `MDALGO` | `3` | `1` = VelocityVerlet: NVE if `ANDERSEN_PROB = 0`, NVT Andersen if `ANDERSEN_PROB > 0`; `2` = NVT Nosé-Hoover; `3` = NVT Langevin (`ISIF=2`) or NPT Langevin (`ISIF=3`) |
 | `TEBEG` | `0.0` | Starting temperature (K). Velocities initialised from Maxwell-Boltzmann distribution |
 | `TEEND` | `-1` | Ending temperature (K) for linear ramp; `-1` = same as `TEBEG` (constant temperature) |
 | `POTIM` | `0.5` | MD timestep (fs). Use ≤ 1.0 fs for systems containing hydrogen |
@@ -155,6 +155,78 @@ If intermediate POSCARs are absent, all images are generated automatically by ID
 | `LANGEVIN_GAMMA` | `10.0` | Friction coefficient (ps⁻¹) for atoms in Langevin MD (`MDALGO = 3`). Also reads from `SMASS` if `LANGEVIN_GAMMA` is missing |
 | `LANGEVIN_GAMMA_L` | `10.0` | Friction coefficient (ps⁻¹) for the lattice in Langevin NPT (`MDALGO = 3, ISIF = 3`) |
 | `SMASS` | `-3.0` | Nose-Hoover mass or Langevin friction. Values > 0 are used if `LANGEVIN_GAMMA` is missing |
+
+#### NVE — microcanonical ensemble
+
+Use `MDALGO = 1` with `ANDERSEN_PROB = 0.0` (no collisions → pure VelocityVerlet integrator).
+
+```
+IBRION        = 0
+MDALGO        = 1
+ANDERSEN_PROB = 0.0
+NSW           = 5000
+TEBEG         = 300      # sets initial velocity distribution only
+POTIM         = 1.0
+NBLOCK        = 10
+```
+
+#### NVT — canonical ensemble
+
+Three thermostat options are available:
+
+**Andersen thermostat** (`MDALGO = 1`, `ANDERSEN_PROB > 0`): stochastic velocity rescaling at each step. Simple and robust; `ANDERSEN_PROB` controls how frequently velocities are reassigned from the Maxwell-Boltzmann distribution (typical range: 0.01–0.1).
+
+```
+IBRION        = 0
+MDALGO        = 1
+ANDERSEN_PROB = 0.05
+NSW           = 5000
+TEBEG         = 300
+POTIM         = 1.0
+NBLOCK        = 10
+```
+
+**Nosé-Hoover thermostat** (`MDALGO = 2`): deterministic extended-system thermostat; generates a correct NVT ensemble. `SMASS > 0` sets the coupling time (ps); the default (`SMASS ≤ 0`) uses a period of 40 MD steps.
+
+```
+IBRION = 0
+MDALGO = 2
+SMASS  = 1.0
+NSW    = 5000
+TEBEG  = 300
+POTIM  = 1.0
+NBLOCK = 10
+```
+
+**Langevin thermostat** (`MDALGO = 3`, `ISIF = 2`): stochastic friction + random force; well-suited for systems with slow equilibration. `LANGEVIN_GAMMA` sets the friction coefficient (ps⁻¹).
+
+```
+IBRION         = 0
+MDALGO         = 3
+ISIF           = 2
+LANGEVIN_GAMMA = 10.0
+NSW            = 5000
+TEBEG          = 300
+POTIM          = 1.0
+NBLOCK         = 10
+```
+
+#### NPT — isothermal-isobaric ensemble
+
+Use `MDALGO = 3` with `ISIF = 3`. The Langevin barostat controls the cell volume; `LANGEVIN_GAMMA_L` sets the lattice friction. Set `PSTRESS` to the target pressure in kBar (0 = ambient pressure).
+
+```
+IBRION           = 0
+MDALGO           = 3
+ISIF             = 3
+LANGEVIN_GAMMA   = 10.0
+LANGEVIN_GAMMA_L = 10.0
+PSTRESS          = 0.0
+NSW              = 5000
+TEBEG            = 300
+POTIM            = 1.0
+NBLOCK           = 10
+```
 
 ---
 

@@ -20,7 +20,7 @@ class IncarConfig:
     LANGEVIN_GAMMA_L: float # MD: lattice friction coefficient (ps^-1) for Langevin NPT
     SMASS: float       # MD: Nose-Hoover mass or Langevin friction (ps^-1); <=0 uses default 0.01 fs^-1
     IMAGES: int = 0                                    # NEB: number of intermediate images
-    SPRING: float = -5.0                              # NEB: spring constant (eV/Å^2)
+    SPRING: float = -5.0                              # NEB: spring constant; SPRING < 0 (NEB convention); k = |SPRING| eV/Å^2
     LCLIMB: bool = False                              # NEB: enable climbing-image (CI-NEB)
     raw: Dict[str, str] = field(default_factory=dict)
 
