@@ -1,4 +1,3 @@
-# ~/software/vasp-mace/pyproject.toml
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -6,25 +5,39 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vasp-mace"
 version = "1.4.0"
-description = "A minimal VASP-like front-end using MACE"
+description = "A VASP-like interface for running ML potential calculations with MACE"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-  { name = "Ricardo Grau-Crespo" }
+  { name = "Ricardo Grau-Crespo", email = "rgrauc@gmail.com" }
 ]
 license = { text = "MIT" }
+keywords = ["VASP", "MACE", "machine learning potential", "molecular dynamics", "NEB", "materials science"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Chemistry",
+  "Topic :: Scientific/Engineering :: Physics",
+]
 
-# Runtime deps (adjust versions to your env if needed)
 dependencies = [
   "ase>=3.22.1",
   "torch>=2.2",
   "mace-torch>=0.3.6",
-  # Optional but useful if you ever switch to hub downloads:
-  # "huggingface_hub>=0.22"
 ]
 
+[project.urls]
+Homepage = "https://github.com/rgraucrespo/vasp-mace"
+Repository = "https://github.com/rgraucrespo/vasp-mace"
+"Bug Tracker" = "https://github.com/rgraucrespo/vasp-mace/issues"
+
 [project.scripts]
-# This creates the shell command `vasp-mace`
 vasp-mace = "vasp_mace.cli:main"
 
 [tool.setuptools.packages.find]
