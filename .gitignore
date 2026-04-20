@@ -21,3 +21,8 @@ dist/
 not_for_release/
 vasp-mace_dev.md
 
+# MD example run artifacts
+examples/example07_PbTe_MD/INCAR
+examples/example07_PbTe_MD/nvt_output/
+examples/example07_PbTe_MD/npt_output/
+
