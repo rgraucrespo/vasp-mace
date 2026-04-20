@@ -85,8 +85,8 @@ def _run():
         elif cfg.MDALGO == 2:
             extra_info = f", SMASS={cfg.SMASS}"
         elif cfg.MDALGO == 3:
-            gamma = cfg.LANGEVIN_GAMMA[0] if cfg.LANGEVIN_GAMMA.size > 0 else 10.0
-            extra_info = f", LANGEVIN_GAMMA={gamma} ps⁻¹"
+            gamma_str = " ".join(str(g) for g in cfg.LANGEVIN_GAMMA)
+            extra_info = f", LANGEVIN_GAMMA={gamma_str} ps⁻¹"
 
         print(
             f"[info] Model={args.model}, device={device}, dtype={dtype}, "

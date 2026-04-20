@@ -17,3 +17,7 @@ dist/
 .vscode/
 .idea/
 
+# Development / internal files
+not_for_release/
+vasp-mace_dev.md
+

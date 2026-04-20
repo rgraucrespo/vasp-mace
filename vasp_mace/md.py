@@ -106,6 +106,34 @@ class LangevinNPT(MolecularDynamics):
 from .types_ import MDRecord
 from .io_vasp import write_xdatcar_header, append_xdatcar_frame
 
+
+def _per_atom_friction(atoms, langevin_gamma: np.ndarray) -> np.ndarray:
+    """Return per-atom friction (ps⁻¹, shape (N,)) from LANGEVIN_GAMMA.
+
+    If langevin_gamma has one value, it is broadcast to all atoms.
+    If it has multiple values, they are treated as per-species in the order
+    species first appear in the atoms object (matching POSCAR convention).
+    """
+    N = len(atoms)
+    if langevin_gamma.size == 1:
+        return np.full(N, langevin_gamma[0])
+
+    symbols = atoms.get_chemical_symbols()
+    seen: list[str] = []
+    for s in symbols:
+        if s not in seen:
+            seen.append(s)
+
+    if langevin_gamma.size != len(seen):
+        print(
+            f"[warn] LANGEVIN_GAMMA has {langevin_gamma.size} values but "
+            f"{len(seen)} species ({', '.join(seen)}). Using first value for all atoms."
+        )
+        return np.full(N, langevin_gamma[0])
+
+    gamma_map = {s: langevin_gamma[i] for i, s in enumerate(seen)}
+    return np.array([gamma_map[s] for s in symbols])
+
 ASE_OUT_DIR = "ase_files"
 
 
@@ -133,9 +161,9 @@ def run_md(atoms, calc, cfg):
     T_end = cfg.TEEND if cfg.TEEND >= 0.0 else cfg.TEBEG
     do_ramp = (cfg.MDALGO == 3) and (T_end != T_start)
 
-    # Friction coefficients: convert from ps^-1 to fs^-1 (divide by 1000)
-    gamma_ps = cfg.LANGEVIN_GAMMA[0] if cfg.LANGEVIN_GAMMA.size > 0 else 10.0
-    friction_fs = gamma_ps / 1000.0  # atomic friction: ps^-1 -> fs^-1
+    # Friction coefficients: build per-atom array (ps^-1), then convert to fs^-1
+    gamma_per_atom = _per_atom_friction(atoms, cfg.LANGEVIN_GAMMA)  # shape (N,), ps^-1
+    friction_per_atom_ase = gamma_per_atom / 1000.0 / ASE_FS  # ASE time units^-1
     friction_L_fs = cfg.LANGEVIN_GAMMA_L / 1000.0  # lattice friction: ps^-1 -> fs^-1
 
     os.makedirs(ASE_OUT_DIR, exist_ok=True)
@@ -184,31 +212,29 @@ def run_md(atoms, calc, cfg):
             pressure_GPa = cfg.PSTRESS * 0.1
             p_ext = pressure_GPa * GPa  # eV/A^3 (compression positive)
 
-            # Piston mass: scaled by number of atoms to balance barostat coupling.
-            # A larger mass produces slower cell fluctuations. Default: ~100^2 per atom (eV*fs^2).
-            # This is a sensible heuristic; future versions may allow user control.
-            piston_mass = 1.0 * N * (100.0**2) # eV * fs^2
-            
-            # LangevinNPT uses friction in 1/ASE_time (same convention as ASE Langevin)
+            # Piston mass (amu; numerically equals eV·ASE_time² in ASE units since 1 amu·Å² = 1 eV·ASE_time²).
+            # Use PMASS from INCAR if set, otherwise default to N × 10000 amu.
+            piston_mass = cfg.PMASS if cfg.PMASS > 0.0 else float(N) * (100.0 ** 2)
+
+            # LangevinNPT uses friction in 1/ASE_time; reshape to (N,1) for broadcasting
+            friction_npt = friction_per_atom_ase.reshape(-1, 1)
             dyn = LangevinNPT(
                 atoms,
                 timestep=cfg.POTIM * ASE_FS,
                 temperature_K=T_start,
                 externalstress=p_ext,
-                friction=friction_fs / ASE_FS,  # atomic friction: fs^-1 -> ASE_time^-1
+                friction=friction_npt,
                 barostat_friction=friction_L_fs / ASE_FS,  # lattice friction: fs^-1 -> ASE_time^-1
                 piston_mass=piston_mass,
                 logfile=md_log,
             )
         else:
-            # NVT: Langevin
-            # ASE's Langevin expects friction in 1/ASE_time (ASE uses its own time unit)
-            # Convert fs^-1 to ASE time^-1 by dividing by ASE_FS (which is ~24.2 eV*fs/eV)
+            # NVT: Langevin; reshape to (N,1) so fr/masses stays (N,1) not (N,N)
             dyn = Langevin(
                 atoms,
                 timestep=cfg.POTIM * ASE_FS,
                 temperature_K=T_start,
-                friction=friction_fs / ASE_FS,
+                friction=friction_per_atom_ase.reshape(-1, 1),
                 logfile=md_log,
             )
     else:

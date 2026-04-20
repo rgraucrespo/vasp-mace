@@ -75,6 +75,12 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
     # LANGEVIN_GAMMA_L: lattice friction for MDALGO=3, ISIF=3
     langevin_gamma_l = _to_float(raw.get("LANGEVIN_GAMMA_L", 10.0), 10.0)
 
+    # PMASS: piston mass for Langevin NPT (amu); 0 = auto
+    pmass = _to_float(raw.get("PMASS", 0.0), 0.0)
+    if pmass < 0.0:
+        print(f"[warn] PMASS={pmass} is negative. Using automatic piston mass (N × 10000 amu).")
+        pmass = 0.0
+
     # Coerce ISIF=0 → ISIF=2 (no cell relaxation, stress still computed)
     if isif == 0:
         print("[warn] ISIF=0 requested. Treating as ISIF=2 (no cell relaxation).")
@@ -108,6 +114,7 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         LANGEVIN_GAMMA=langevin_gamma,
         LANGEVIN_GAMMA_L=langevin_gamma_l,
         SMASS=smass,
+        PMASS=pmass,
         IMAGES=images,
         SPRING=spring,
         LCLIMB=lclimb,

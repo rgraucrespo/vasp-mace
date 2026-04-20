@@ -152,8 +152,9 @@ If intermediate POSCARs are absent, all images are generated automatically by ID
 | `POTIM` | `0.5` | MD timestep (fs). Use ≤ 1.0 fs for systems containing hydrogen |
 | `NBLOCK` | `1` | Write XDATCAR frame and trajectory snapshot every `NBLOCK` steps |
 | `ANDERSEN_PROB` | `0.0` | Collision probability for Andersen thermostat (`MDALGO = 1`) |
-| `LANGEVIN_GAMMA` | `10.0` | Friction coefficient (ps⁻¹) for atoms in Langevin MD (`MDALGO = 3`). Also reads from `SMASS` if `LANGEVIN_GAMMA` is missing |
+| `LANGEVIN_GAMMA` | `10.0` | Friction coefficient(s) (ps⁻¹) for atoms in Langevin MD (`MDALGO = 3`). A single value applies to all atoms; multiple space-separated values are assigned per species in POSCAR order. Also reads from `SMASS` if `LANGEVIN_GAMMA` is missing |
 | `LANGEVIN_GAMMA_L` | `10.0` | Friction coefficient (ps⁻¹) for the lattice in Langevin NPT (`MDALGO = 3, ISIF = 3`) |
+| `PMASS` | `0` | Piston mass (amu) for Langevin NPT (`MDALGO = 3, ISIF = 3`). `0` = automatic (`N × 10000` amu) |
 | `SMASS` | `-3.0` | Nose-Hoover mass or Langevin friction. Values > 0 are used if `LANGEVIN_GAMMA` is missing |
 
 #### NVE — microcanonical ensemble
@@ -198,13 +199,13 @@ POTIM  = 1.0
 NBLOCK = 10
 ```
 
-**Langevin thermostat** (`MDALGO = 3`, `ISIF = 2`): stochastic friction + random force; well-suited for systems with slow equilibration. `LANGEVIN_GAMMA` sets the friction coefficient (ps⁻¹).
+**Langevin thermostat** (`MDALGO = 3`, `ISIF = 2`): stochastic friction + random force; well-suited for systems with slow equilibration. `LANGEVIN_GAMMA` accepts a single value (all atoms) or one value per species in POSCAR order.
 
 ```
 IBRION         = 0
 MDALGO         = 3
 ISIF           = 2
-LANGEVIN_GAMMA = 10.0
+LANGEVIN_GAMMA = 10.0 20.0   # per-species: species1=10, species2=20 ps^-1
 NSW            = 5000
 TEBEG          = 300
 POTIM          = 1.0
@@ -213,14 +214,15 @@ NBLOCK         = 10
 
 #### NPT — isothermal-isobaric ensemble
 
-Use `MDALGO = 3` with `ISIF = 3`. The Langevin barostat controls the cell volume; `LANGEVIN_GAMMA_L` sets the lattice friction. Set `PSTRESS` to the target pressure in kBar (0 = ambient pressure).
+Use `MDALGO = 3` with `ISIF = 3`. The Langevin barostat controls the cell volume; `LANGEVIN_GAMMA_L` sets the lattice friction. Set `PSTRESS` to the target pressure in kBar (0 = ambient pressure). `PMASS` sets the barostat piston mass in amu (default: `N × 10000` amu).
 
 ```
 IBRION           = 0
 MDALGO           = 3
 ISIF             = 3
-LANGEVIN_GAMMA   = 10.0
+LANGEVIN_GAMMA   = 10.0 20.0   # per-species: species1=10, species2=20 ps^-1
 LANGEVIN_GAMMA_L = 10.0
+PMASS            = 50000
 PSTRESS          = 0.0
 NSW              = 5000
 TEBEG            = 300
@@ -234,10 +236,10 @@ NBLOCK           = 10
 
 While `vasp-mace` aims for a high degree of compatibility, there are important technical differences to keep in mind:
 
-- **Langevin Friction**: VASP allows `LANGEVIN_GAMMA` to be a vector (one value per species). Currently, `vasp-mace` treats it as a single scalar for all atoms, taking only the first value provided in the INCAR.
+- **Langevin Friction**: VASP allows `LANGEVIN_GAMMA` to be a vector (one value per species). `vasp-mace` supports this: if multiple values are given they are assigned to species in the order they first appear in the POSCAR, matching VASP's convention.
 - **Nosé-Hoover Coupling**: In VASP, `SMASS` directly sets the thermostat mass ($Q$). In `vasp-mace`, if `SMASS > 0`, it is treated as a characteristic damping time in picoseconds ($t_{damp} = \text{SMASS} \times 1 \text{ ps}$). The default `SMASS = 0` (or $\le 0$) correctly maps to an oscillation period of 40 time steps, matching VASP's default behavior.
 - **Langevin NPT Algorithm**: The NPT implementation in `vasp-mace` (`MDALGO = 3`, `ISIF = 3`) uses the stochastic barostat algorithm of Quigley and Probert (2004). This correctly samples the NPT ensemble but may fluctuate differently than VASP's internal implementation.
-- **Piston Mass**: The lattice "piston mass" for NPT is currently set to a sensible default based on the number of atoms. Future versions may allow more granular control over this parameter.
+- **Piston Mass**: The lattice "piston mass" for NPT defaults to `N × 10000` amu, but can be set explicitly via the `PMASS` INCAR tag (in amu, matching VASP's convention).
 - **Optimizers**: Relaxation (`IBRION = 1, 2, 3`) uses ASE's robust optimizers (LBFGS, BFGS, and FIRE) rather than VASP's internal RMM-DIIS or conjugate gradient routines.
 - **NEB Optimizer**: NEB calculations always use ASE's `MDMin` optimizer (regardless of `IBRION`). `MDMin` projects velocities along the force direction and resets them when the velocity and force point in opposite directions, which prevents the divergence that plagues BFGS and FIRE under non-conservative spring forces. VASP with VTST uses a different quasi-Newton method.
 - **`LCLIMB` tag**: Not a native VASP tag. It originates from the [VTST Tools](https://theory.cm.utexas.edu/vtsttools/neb.html) extension package for VASP. Native VASP (without VTST) does not recognise `LCLIMB` and always runs plain NEB.
@@ -310,6 +312,7 @@ Ready-to-run examples are provided in the `examples/` directory. Copy an example
 | `example04_PbTe_pressure/` | PbTe (rock salt) | Variable-cell relaxation under 15 kBar target pressure (`PSTRESS = 15`) |
 | `example05_Si_NEB/` | Si (diamond cubic) | CI-NEB for Si interstitial migration (`LCLIMB = .TRUE.`, 4 intermediate images) |
 | `example06_Pt_NEB/` | Pt (fcc-001 surface) | CI-NEB for Pt adatom collective jump (`LCLIMB = .TRUE.`, 3 intermediate images) |
+| `example07_PbTe_MD/` | PbTe (rock salt, 512 atoms) | Sequential NVT → NPT Langevin MD; per-species `LANGEVIN_GAMMA` and explicit `PMASS` |
 
 ### example01 — MgO variable-cell relaxation
 
@@ -377,6 +380,42 @@ ISIF   = 2
 IMAGES = 3
 SPRING = -5
 LCLIMB = .TRUE.
+```
+
+### example07 — PbTe sequential NVT → NPT MD
+
+512-atom PbTe supercell. Demonstrates per-species `LANGEVIN_GAMMA` (Pb and Te assigned different friction coefficients) and explicit `PMASS`. Run with the provided `run.sh`, which chains the two stages automatically and saves outputs to `nvt_output/` and `npt_output/`.
+
+**Stage 1 — NVT equilibration** (`INCAR_NVT`):
+
+```
+IBRION         = 0
+MDALGO         = 3
+ISIF           = 2
+LANGEVIN_GAMMA = 10.0 20.0   # Pb: 10 ps^-1, Te: 20 ps^-1
+NSW            = 500
+TEBEG          = 300
+POTIM          = 1.0
+NBLOCK         = 1
+```
+
+**Stage 2 — NPT production** (`INCAR_NPT`, starts from NVT `CONTCAR`):
+
+```
+IBRION           = 0
+MDALGO           = 3
+ISIF             = 3
+LANGEVIN_GAMMA   = 10.0 20.0   # Pb: 10 ps^-1, Te: 20 ps^-1
+LANGEVIN_GAMMA_L = 10.0
+PMASS            = 50000
+NSW              = 500
+TEBEG            = 300
+POTIM            = 1.0
+NBLOCK           = 1
+```
+
+```bash
+bash run.sh --model /path/to/model
 ```
 
 ---
