@@ -94,6 +94,11 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
             f"13 (D3-zero+ATM), 14 (D3-BJ+ATM)."
         )
 
+    nfree = _to_int(raw.get("NFREE", 2), 2)
+    if nfree not in (1, 2):
+        print(f"[warn] NFREE={nfree} is not supported. Using NFREE=2.")
+        nfree = 2
+
     images  = _to_int(raw.get("IMAGES",   0),     0)
     spring  = _to_float(raw.get("SPRING", -5.0), -5.0)
     lclimb  = _to_bool(raw.get("LCLIMB", False), False)
@@ -115,6 +120,7 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         LANGEVIN_GAMMA_L=langevin_gamma_l,
         SMASS=smass,
         PMASS=pmass,
+        NFREE=nfree,
         IMAGES=images,
         SPRING=spring,
         LCLIMB=lclimb,

@@ -20,6 +20,7 @@ class IncarConfig:
     LANGEVIN_GAMMA_L: float # MD: lattice friction coefficient (ps^-1) for Langevin NPT
     SMASS: float       # MD: Nose-Hoover mass or Langevin friction (ps^-1); <=0 uses default 0.01 fs^-1
     PMASS: float = 0.0 # MD: piston mass (amu) for Langevin NPT; 0 = auto (N × 10000 amu)
+    NFREE: int = 2                                       # phonons: displacements per DOF (1 = +only, 2 = ±central)
     IMAGES: int = 0                                    # NEB: number of intermediate images
     SPRING: float = -5.0                              # NEB: spring constant; SPRING < 0 (NEB convention); k = |SPRING| eV/Å^2
     LCLIMB: bool = False                              # NEB: enable climbing-image (CI-NEB)

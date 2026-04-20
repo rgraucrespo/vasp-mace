@@ -77,6 +77,19 @@ def _run():
                                     dispersion=dispersion)
     atoms.calc = calc
 
+    # --- IBRION=5/6: phonon finite differences ---
+    if cfg.IBRION in (5, 6):
+        if "POTIM" not in cfg.raw:
+            cfg.POTIM = 0.015
+            print(f"[info] POTIM not set; using VASP default 0.015 Å for phonon displacement.")
+        print(
+            f"[info] Model={args.model}, device={device}, dtype={dtype}, "
+            f"IBRION={cfg.IBRION}, NFREE={cfg.NFREE}, POTIM={cfg.POTIM} Å"
+        )
+        from .phonons import run_phonons
+        run_phonons(atoms, calc, cfg)
+        return
+
     # --- IBRION=0: MD mode ---
     if cfg.IBRION == 0:
         extra_info = ""
