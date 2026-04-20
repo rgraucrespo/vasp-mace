@@ -72,16 +72,7 @@ Place `POSCAR` and `INCAR` in your working directory, then run:
 vasp-mace
 ```
 
-The mode (single-point, relaxation, or MD) is determined automatically from the INCAR tags.
-
-### CLI options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--model PATH` | `$MACE_MODEL_PATH` | Path to MACE `.model` checkpoint |
-| `--device` | `auto` | `auto` (→ `cpu`), `cpu`, or `mps` |
-| `--dtype` | `auto` | `auto` (→ `float64` on CPU), `float32`, or `float64` |
-| `--optimizer` | `BFGS` | Fallback optimizer: `BFGS`, `FIRE`, or `LBFGS`. Overridden by `IBRION` if set in INCAR |
+The mode (single-point, relaxation, NEB, or MD) is determined automatically from the INCAR tags.
 
 ---
 
@@ -232,18 +223,30 @@ NBLOCK           = 10
 
 ---
 
+### CLI options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--model PATH` | `$MACE_MODEL_PATH` | Path to MACE `.model` checkpoint |
+| `--device` | `auto` | `auto` (→ `cpu`), `cpu`, or `mps` |
+| `--dtype` | `auto` | `auto` (→ `float64` on CPU), `float32`, or `float64` |
+| `--optimizer` | `BFGS` | Fallback optimizer: `BFGS`, `FIRE`, or `LBFGS`. Overridden by `IBRION` if set in INCAR |
+
+
+---
+
 ## Differences with respect to VASP
 
 While `vasp-mace` aims for a high degree of compatibility, there are important technical differences to keep in mind:
 
-- **Langevin Friction**: VASP allows `LANGEVIN_GAMMA` to be a vector (one value per species). `vasp-mace` supports this: if multiple values are given they are assigned to species in the order they first appear in the POSCAR, matching VASP's convention.
+- **Electronic Steps**: Since MACE is a machine-learning potential, there are no "electronic steps" in the DFT sense. For compatibility with tools like `vasprun.xml`, a single dummy electronic step is recorded per ionic step.
 - **Nosé-Hoover Coupling**: In VASP, `SMASS` directly sets the thermostat mass ($Q$). In `vasp-mace`, if `SMASS > 0`, it is treated as a characteristic damping time in picoseconds ($t_{damp} = \text{SMASS} \times 1 \text{ ps}$). The default `SMASS = 0` (or $\le 0$) correctly maps to an oscillation period of 40 time steps, matching VASP's default behavior.
 - **Langevin NPT Algorithm**: The NPT implementation in `vasp-mace` (`MDALGO = 3`, `ISIF = 3`) uses the stochastic barostat algorithm of Quigley and Probert (2004). This correctly samples the NPT ensemble but may fluctuate differently than VASP's internal implementation.
 - **Piston Mass**: The lattice "piston mass" for NPT defaults to `N × 10000` amu, but can be set explicitly via the `PMASS` INCAR tag (in amu, matching VASP's convention).
 - **Optimizers**: Relaxation (`IBRION = 1, 2, 3`) uses ASE's robust optimizers (LBFGS, BFGS, and FIRE) rather than VASP's internal RMM-DIIS or conjugate gradient routines.
 - **NEB Optimizer**: NEB calculations always use ASE's `MDMin` optimizer (regardless of `IBRION`). `MDMin` projects velocities along the force direction and resets them when the velocity and force point in opposite directions, which prevents the divergence that plagues BFGS and FIRE under non-conservative spring forces. VASP with VTST uses a different quasi-Newton method.
 - **`LCLIMB` tag**: Not a native VASP tag. It originates from the [VTST Tools](https://theory.cm.utexas.edu/vtsttools/neb.html) extension package for VASP. Native VASP (without VTST) does not recognise `LCLIMB` and always runs plain NEB.
-- **Electronic Steps**: Since MACE is a machine-learning potential, there are no "electronic steps" in the DFT sense. For compatibility with tools like `vasprun.xml`, a single dummy electronic step is recorded per ionic step.
+
 
 ---
 
