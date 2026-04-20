@@ -48,6 +48,9 @@ include = ["vasp_mace*"]
 include-package-data = true
 
 [project.optional-dependencies]
+phonons = [
+  "phonopy>=2.20",
+]
 dev = [
   "pytest",
   "black",
