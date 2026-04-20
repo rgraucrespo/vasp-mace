@@ -107,7 +107,7 @@ Only the tags relevant to `vasp-mace` are parsed; all others are silently ignore
 
 | `ISIF` | Positions | Cell shape | Cell volume | Note |
 |--------|-----------|------------|-------------|------|
-| `2` | relaxed | fixed | fixed | MD: NVT |
+| `0`, `1`, `2` | relaxed | fixed | fixed | MD: NVT. `0` and `1` are treated as `2` (in VASP they differ only in how much of the stress tensor is computed; `vasp-mace` always computes the full stress) |
 | `3` | relaxed | relaxed | relaxed | MD: NPT (`MDALGO=3`) |
 | `4` | relaxed | relaxed | fixed | Relax only |
 | `7` | fixed | fixed | relaxed | Relax only |

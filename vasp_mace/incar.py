@@ -81,9 +81,11 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         print(f"[warn] PMASS={pmass} is negative. Using automatic piston mass (N × 10000 amu).")
         pmass = 0.0
 
-    # Coerce ISIF=0 → ISIF=2 (no cell relaxation, stress still computed)
-    if isif == 0:
-        print("[warn] ISIF=0 requested. Treating as ISIF=2 (no cell relaxation).")
+    # Coerce ISIF=0/1 → ISIF=2 (positions only, no cell DOF)
+    # In VASP, 0/1/2 all fix the cell; they differ only in how much stress VASP computes
+    # internally, which is irrelevant here (we always compute the full stress tensor).
+    if isif in (0, 1):
+        print(f"[warn] ISIF={isif} requested. Treating as ISIF=2 (positions only, no cell relaxation).")
         isif = 2
 
     # Validate IVDW
