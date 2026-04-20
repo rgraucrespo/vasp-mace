@@ -1,13 +1,13 @@
 System = Si
 
 ! Ionic relaxation
-NSW = 100                    # Max number of ionic steps
-EDIFFG = -0.01               # Break condition for ionic relaxation
-IBRION = 1                   # Quasi-Newton algorithm
-POTIM = 0.8                  # Step width
-ISIF = 2                     # Cell shape and volume fixed, ions free
+NSW    = 100     # Max number of NEB optimizer steps
+EDIFFG = -0.01   # Convergence criterion: max ionic force (eV/Å)
+IBRION = 1       # Optimizer: LBFGS (mapped to MDMin for NEB)
+POTIM  = 0.8     # Optimizer step width (ignored by vasp-mace for NEB)
+ISIF   = 2       # Fixed cell, ions free
 
 ! NEB
-IMAGES = 4                   # 4 intermediate geometries for the NEB
-SPRING = -5                  # Spring constant (eV/Å²)
-LCLIMB = .TRUE.              # Climbing-image NEB (CI-NEB)
+IMAGES = 4       # Number of intermediate images
+SPRING = -5      # Spring constant (eV/Å²); negative = NEB convention
+LCLIMB = .TRUE.  # Enable climbing-image NEB (CI-NEB)

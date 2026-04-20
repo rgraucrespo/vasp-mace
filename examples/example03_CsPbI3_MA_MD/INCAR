@@ -1,8 +1,8 @@
-IVDW = 12
-IBRION = 0
-MDALGO = 2
-NSW    = 200 
-TEBEG  = 500
-POTIM  = 0.5
-NBLOCK = 5
-SMASS  = 1.0
+IVDW   = 12     # Empirical dispersion correction: D3(Becke-Johnson)
+IBRION = 0      # Molecular dynamics mode
+MDALGO = 2      # Nose-Hoover NVT thermostat
+NSW    = 200    # Number of MD steps
+TEBEG  = 500    # Starting temperature (K)
+POTIM  = 0.5    # MD timestep (fs)
+NBLOCK = 5      # Write XDATCAR every N steps
+SMASS  = 1.0    # Nose-Hoover thermostat coupling time (ps)

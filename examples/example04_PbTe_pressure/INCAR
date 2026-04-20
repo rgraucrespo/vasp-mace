@@ -1,4 +1,4 @@
-NSW     = 100
-ISIF    = 3
-EDIFFG  = -0.01
-PSTRESS = 15
+NSW     = 100    # Max number of ionic steps
+ISIF    = 3      # Relax atomic positions, cell shape, and volume
+EDIFFG  = -0.01  # Convergence criterion: max ionic force (eV/Å)
+PSTRESS = 15     # Target hydrostatic pressure (kBar)

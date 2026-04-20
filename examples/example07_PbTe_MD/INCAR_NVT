@@ -1,11 +1,11 @@
 # MD general
-IBRION = 0
-NSW    = 500 
-TEBEG  = 300
-POTIM  = 1 
-NBLOCK = 1
-ISIF = 2 
+IBRION = 0              # Molecular dynamics mode
+NSW    = 500            # Number of MD steps
+TEBEG  = 300            # Starting temperature (K)
+POTIM  = 1              # MD timestep (fs)
+NBLOCK = 1              # Write XDATCAR every N steps
+ISIF   = 2              # Fixed cell (NVT)
 
 # Thermostat
-MDALGO = 3
-LANGEVIN_GAMMA = 10.0 20.0    # Pb: 10 ps^-1, Te: 20 ps^-1
+MDALGO         = 3              # Langevin thermostat/barostat
+LANGEVIN_GAMMA = 10.0 20.0      # Atomic friction per species (ps^-1), POSCAR order
