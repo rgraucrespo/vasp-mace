@@ -1,0 +1,6 @@
+ ISIF = 0
+ IBRION = 6   ! calculate second derivatives, Hessian matrix, and phonon frequencies
+ NFREE = 2    ! central differences
+ POTIM = 0.02 ! 0.02 A stepwidth 
+ NSW = 1      ! ionic steps > 0
+

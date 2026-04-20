@@ -97,7 +97,7 @@ Only the tags relevant to `vasp-mace` are parsed; all others are silently ignore
 | Tag | Default | Description |
 |-----|---------|-------------|
 | `NSW` | `0` | Max ionic steps. `0` = single-point calculation |
-| `IBRION` | `-1` | `-1` = use `--optimizer` CLI flag; `0` = MD; `1` = LBFGS; `2` = BFGS; `3` = FIRE. For NEB (`IMAGES > 0`): `1` and `2` both map to MDMin (the recommended NEB optimizer) |
+| `IBRION` | `-1` | `-1` = use `--optimizer` CLI flag; `0` = MD; `1` = LBFGS; `2` = BFGS; `3` = FIRE; `5` = phonons (no symmetry); `6` = phonons (symmetry-reduced via phonopy). For NEB (`IMAGES > 0`): `1` and `2` both map to MDMin (the recommended NEB optimizer) |
 | `EDIFFG` | `-0.05` | Convergence criterion. `< 0`: max force (eV/Å); `> 0`: energy change per ion (eV) |
 | `ISIF` | `2` | Degrees of freedom to relax (see table below) |
 | `PSTRESS` | `0.0` | Target hydrostatic pressure in kBar, applied when `ISIF = 3` |
@@ -144,6 +144,32 @@ If intermediate POSCARs are absent, all images are generated automatically by ID
 
 > **`LCLIMB` and VTST convention**: In VASP with the optional VTST extension, CI-NEB is activated by `LCLIMB = .TRUE.`. Native VASP (without VTST) does not recognise this tag and always runs plain NEB. `vasp-mace` follows the VTST convention so that INCAR files from VTST-enabled VASP work without modification.  
 > `SPRING` follows the VASP sign convention: negative values (`SPRING < 0`) indicate NEB, and the spring constant is `k = |SPRING|`. Positive values correspond to the non-nudged elastic band method and are not supported by `vasp-mace`. CI-NEB is controlled exclusively by `LCLIMB`, not by the sign of `SPRING`.
+
+### Phonon calculations (IBRION = 5 or 6)
+
+Finite-difference second derivatives (force constants and phonon frequencies) at the Γ-point.
+
+| Tag | Default | Description |
+|-----|---------|-------------|
+| `POTIM` | `0.015` | Displacement amplitude (Å). In phonon mode this sets the finite-difference step, **not** the MD timestep. VASP uses 0.02 Å; either value is acceptable |
+| `NFREE` | `2` | Displacements per degree of freedom: `2` = central differences (±δ, recommended); `1` = forward differences (+δ only) |
+
+**IBRION = 5** computes all N × 3 × NFREE displacements (no symmetry).  
+**IBRION = 6** uses [phonopy](https://phonopy.github.io/phonopy/) to reduce the number of displacements via crystal symmetry. Install with `pip install vasp-mace[phonons]` or `pip install phonopy`. Falls back to IBRION = 5 if phonopy is not installed.
+
+Output files produced (VASP-compatible format):
+
+| File | Description |
+|------|-------------|
+| `DYNMAT` | Force-constant matrix in VASP DYNMAT format (central-difference half-forces) |
+| `OUTCAR` | Phonon eigenvalues and eigenvectors (modes ordered high → low frequency) |
+| `OSZICAR` | One energy line per displaced configuration |
+| `XDATCAR` | Initial + all displaced configurations |
+| `CONTCAR` | Initial (equilibrium) structure |
+| `ase_files/force_constants.npy` | Force constant tensor C[i,α,j,β] in eV/Å² (shape N×3×N×3) |
+| `ase_files/phonopy_params.yaml` | Phonopy parameters file (IBRION = 6 only) |
+
+> **Note**: IBRION = 5/6 performs single-point force evaluations only (no ionic relaxation). The structure should be pre-relaxed to a minimum before running phonon calculations.
 
 ### Molecular dynamics (IBRION = 0)
 
@@ -258,6 +284,7 @@ While `vasp-mace` aims for a high degree of compatibility, there are important t
 - **Optimizers**: Relaxation (`IBRION = 1, 2, 3`) uses ASE's robust optimizers (LBFGS, BFGS, and FIRE) rather than VASP's internal RMM-DIIS or conjugate gradient routines.
 - **NEB Optimizer**: NEB calculations always use ASE's `MDMin` optimizer (regardless of `IBRION`). `MDMin` projects velocities along the force direction and resets them when the velocity and force point in opposite directions, which prevents the divergence that plagues BFGS and FIRE under non-conservative spring forces. VASP with VTST uses a different quasi-Newton method.
 - **`LCLIMB` tag**: Not a native VASP tag. It originates from the [VTST Tools](https://theory.cm.utexas.edu/vtsttools/neb.html) extension package for VASP. Native VASP (without VTST) does not recognise `LCLIMB` and always runs plain NEB.
+- **Phonon calculations**: IBRION = 5/6 produce `DYNMAT`, `OUTCAR` (eigenvalues + eigenvectors in VASP format), `OSZICAR`, `XDATCAR`, and `CONTCAR`. The `OUTCAR` phonon section is VASP-compatible (modes ordered high → low frequency; `f  =` for real, `f/i=` for imaginary). VASP's electronic-iteration lines in `OSZICAR` are omitted (replaced by a single energy summary line per configuration). `vasprun.xml` is not written for phonon runs.
 
 
 ---
@@ -313,6 +340,10 @@ No `XDATCAR` is produced for NEB runs.
 | `OSZICAR` | Single-line energy summary |
 | `vasprun.xml` | Full single-point XML compatible with ShengBTE and Phonopy |
 
+### Phonon calculations (IBRION = 5 or 6)
+
+See the [Phonon calculations](#phonon-calculations-ibrion--5-or-6) INCAR section above for a description of output files.
+
 ---
 
 ## Examples
@@ -328,6 +359,7 @@ Ready-to-run examples are provided in the `examples/` directory. Copy an example
 | `example05_Si_NEB/` | Si (diamond cubic) | CI-NEB for Si interstitial migration (`LCLIMB = .TRUE.`, 4 intermediate images) |
 | `example06_Pt_NEB/` | Pt (fcc-001 surface) | CI-NEB for Pt adatom collective jump (`LCLIMB = .TRUE.`, 3 intermediate images) |
 | `example07_PbTe_MD/` | PbTe (rock salt, 512 atoms) | Sequential NVT → NPT Langevin MD; per-species `LANGEVIN_GAMMA` and explicit `PMASS` |
+| `example08_PbTe_phonons/` | PbTe (rock salt, 8 atoms) | Phonon calculation with symmetry reduction (`IBRION = 6`, `NFREE = 2`). Requires `pip install phonopy` |
 
 ### example01 — MgO variable-cell relaxation
 
@@ -432,6 +464,26 @@ NBLOCK           = 1
 ```bash
 bash run.sh --model /path/to/model
 ```
+
+### example08 — PbTe phonon calculation (IBRION = 6)
+
+8-atom PbTe conventional cell. Symmetry-reduced phonon calculation: only 2 irreducible displacements are needed (vs. 48 for a brute-force IBRION = 5 run). Writes `DYNMAT`, `OUTCAR` (with frequencies and eigenvectors), `OSZICAR`, `XDATCAR`, `CONTCAR`, and `ase_files/phonopy_params.yaml`.
+
+```
+ISIF   = 0
+IBRION = 6
+NFREE  = 2
+POTIM  = 0.02
+NSW    = 1
+```
+
+Run with:
+
+```bash
+vasp-mace --model /path/to/model
+```
+
+Requires `phonopy` for symmetry reduction: `pip install phonopy` or `pip install vasp-mace[phonons]`.
 
 ---
 

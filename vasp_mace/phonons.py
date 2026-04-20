@@ -333,9 +333,10 @@ def _diagonalize(atoms: Atoms, C: np.ndarray):
         -np.sqrt(np.maximum(-omega2, 0.0)) * _THz_FACTOR,
     )
 
-    # Eigenvectors: reshape to (mode, atom, xyz)
+    # Eigenvectors: reshape to (mode, atom, xyz), then reverse to match VASP
+    # convention (mode 1 = highest frequency, last mode = lowest / acoustic)
     eigvecs = v.T.reshape(3 * N, N, 3)
-    return freqs, eigvecs
+    return freqs[::-1].copy(), eigvecs[::-1].copy()
 
 
 # ===========================================================================
@@ -372,9 +373,9 @@ def _write_dynmat(path: str, atoms: Atoms, entries: list,
             f.write(f"  {atom_idx + 1:3d}  {direction:3d}"
                     f"  {disp_vec[0]:6.4f}  {disp_vec[1]:6.4f}  {disp_vec[2]:6.4f}\n")
             for j in range(N):
-                f.write(f"  {dynmat_forces[j, 0]:16.12f}"
-                        f"  {dynmat_forces[j, 1]:16.12f}"
-                        f"  {dynmat_forces[j, 2]:16.12f}\n")
+                f.write(f"{dynmat_forces[j, 0]:16.12f} "
+                        f"{dynmat_forces[j, 1]:16.12f} "
+                        f"{dynmat_forces[j, 2]:16.12f}\n")
 
 
 def _write_xdatcar_phonons(path: str, atoms: Atoms,
@@ -434,14 +435,15 @@ def _write_outcar_phonons(path: str, atoms: Atoms,
             f_cm   = abs_f * _THz_TO_CM
             f_meV  = abs_f * _THz_TO_MEV
 
-            f.write(f"  {m + 1:3d} {label} {abs_f:12.6f} THz  "
-                    f"{f2pi:12.6f} 2PiTHz  "
-                    f"{f_cm:12.6f} cm-1  "
-                    f"{f_meV:12.6f} meV\n")
+            f.write(f" {m + 1:3d} {label}"
+                    f"{abs_f:12.6f} THz"
+                    f"{f2pi:13.6f} 2PiTHz"
+                    f"{f_cm:12.6f} cm-1"
+                    f"{f_meV:13.6f} meV\n")
             f.write("             X         Y         Z           "
                     "dx          dy          dz\n")
             ev = eigvecs[m]   # shape (N, 3)
             for i, (pos, d) in enumerate(zip(positions, ev)):
-                f.write(f"  {pos[0]:10.6f}{pos[1]:10.6f}{pos[2]:10.6f}"
-                        f"    {d[0]:10.6f}  {d[1]:10.6f}  {d[2]:10.6f}  \n")
+                f.write(f"    {pos[0]:10.6f}{pos[1]:10.6f}{pos[2]:10.6f} "
+                        f"{d[0]:12.6f}{d[1]:12.6f}{d[2]:12.6f}  \n")
             f.write("\n")
