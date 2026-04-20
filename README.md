@@ -39,11 +39,23 @@ Whatever brings you here, enjoy `vasp-mace`.
 ## Installation
 
 ```bash
+conda create -n vasp_mace_env python=3.11 -y
+conda activate vasp_mace_env
+conda install -c conda-forge dftd4
+pip install vasp-mace
+```
+
+> **DFT-D3 dispersion** (`IVDW` tag) requires `dftd4`, which is best installed via conda before `pip install vasp-mace`. If you do not need dispersion corrections, the conda step can be skipped.
+
+### Development install (includes examples)
+
+To get the example input files or contribute to the code, clone the repository instead:
+
+```bash
 git clone https://github.com/rgraucrespo/vasp-mace.git
 cd vasp-mace
 conda create -n vasp_mace_env python=3.11 -y
 conda activate vasp_mace_env
-pip install ase torch mace-torch
 conda install -c conda-forge dftd4
 pip install -e .
 ```
