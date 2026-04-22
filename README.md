@@ -13,6 +13,7 @@ It reads VASP-style inputs (`POSCAR`, `INCAR`) and produces VASP-compatible outp
 - **Geometry relaxation** of atomic positions and/or unit cell, driven by MACE potentials
 - **Molecular dynamics** (NVE, NVT Langevin/Nosé-Hoover/Andersen, NPT Langevin) with XDATCAR output
 - **Nudged Elastic Band (NEB)**: minimum-energy path and transition-state search via ASE's MDMin optimizer; optional climbing-image NEB (`LCLIMB = .TRUE.`, VTST convention)
+- **Phonon calculations**: Γ-point force constants and frequencies via finite differences (`IBRION = 5`); symmetry-reduced displacements via phonopy (`IBRION = 6`), with VASP-compatible `DYNMAT` and `OUTCAR` output
 - **Selective dynamics**: per-atom coordinate fixing from POSCAR, preserved in CONTCAR
 - **DFT-D3 dispersion correction** via `IVDW` in INCAR (zero-damping and Becke-Johnson variants, with optional three-body ATM term)
 - **Multiple ISIF modes**: positions-only, full cell relaxation, constant-volume shape relaxation, volume-only
@@ -170,6 +171,8 @@ Output files produced (VASP-compatible format):
 | `ase_files/phonopy_params.yaml` | Phonopy parameters file (IBRION = 6 only) |
 
 > **Note**: IBRION = 5/6 performs single-point force evaluations only (no ionic relaxation). The structure should be pre-relaxed to a minimum before running phonon calculations.
+
+> **ISIF is ignored for phonon runs.** In VASP, `ISIF ≥ 3` with `IBRION = 5/6` additionally computes the elastic tensor and internal strain tensor. `vasp-mace` currently computes force constants only, regardless of `ISIF`. Elastic constant support is planned for a future release.
 
 ### Molecular dynamics (IBRION = 0)
 
