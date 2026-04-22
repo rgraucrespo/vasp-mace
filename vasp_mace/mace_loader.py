@@ -19,9 +19,14 @@ def load_calc(model_path: str, device: str = "auto", dtype: str = "auto", disper
     if not os.path.isfile(model_path):
         raise FileNotFoundError(f"MACE model file not found: {model_path}")
 
-    # Default to CPU/float64 for robustness on macOS (MPS lacks float64)
+    import torch
     if device == "auto":
-        device = "cpu"
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+        else:
+            device = "cpu"
     if dtype == "auto":
         dtype = "float64" if device == "cpu" else "float32"
 
@@ -31,16 +36,27 @@ def load_calc(model_path: str, device: str = "auto", dtype: str = "auto", disper
 
     MACECalculator = _silenced_import_mace()
 
-    # Silence during calculator construction as well (some libs print here)
-    buf = io.StringIO()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        with redirect_stdout(buf), redirect_stderr(buf):
-            calc = MACECalculator(
-                model_paths=[model_path],
-                device=device,
-                default_dtype=dtype,
-                dispersion=dispersion,
-            )
+    def _build_calc(dev, dt):
+        buf = io.StringIO()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with redirect_stdout(buf), redirect_stderr(buf):
+                return MACECalculator(
+                    model_paths=[model_path],
+                    device=dev,
+                    default_dtype=dt,
+                    dispersion=dispersion,
+                )
+
+    if device in ("cuda", "mps"):
+        try:
+            calc = _build_calc(device, dtype)
+        except Exception as e:
+            print(f"[warning] {device.upper()} device failed ({e}); falling back to CPU/float64.")
+            device = "cpu"
+            dtype = "float64"
+            calc = _build_calc(device, dtype)
+    else:
+        calc = _build_calc(device, dtype)
 
     return calc, device, dtype

@@ -266,10 +266,36 @@ NBLOCK           = 10
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--model PATH` | `$MACE_MODEL_PATH` | Path to MACE `.model` checkpoint |
-| `--device` | `auto` | `auto` (→ `cpu`), `cpu`, or `mps` |
-| `--dtype` | `auto` | `auto` (→ `float64` on CPU), `float32`, or `float64` |
+| `--device` | `auto` | `auto` (→ `cuda` if available, else `mps`, else `cpu`), `cpu`, `cuda`, `mps` |
+| `--dtype` | `auto` | `auto` (→ `float64` on CPU, `float32` on GPU/MPS), `float32`, or `float64` |
 | `--optimizer` | `BFGS` | Fallback optimizer: `BFGS`, `FIRE`, or `LBFGS`. Overridden by `IBRION` if set in INCAR |
 
+
+### GPU acceleration
+
+`vasp-mace` supports GPU-accelerated inference via PyTorch. Every energy and force evaluation is a neural-network forward pass, so a GPU can deliver 10–100× speedup over CPU depending on system size.
+
+**NVIDIA (CUDA)**
+
+Install a CUDA-enabled PyTorch build before installing `vasp-mace` (see [pytorch.org/get-started](https://pytorch.org/get-started/locally/) for the right command for your CUDA version), then run:
+
+```bash
+vasp-mace --device cuda
+```
+
+Or simply run `vasp-mace` without `--device` — it will auto-detect CUDA.
+
+**Apple Silicon (MPS)**
+
+```bash
+vasp-mace --device mps
+```
+
+**Precision**
+
+GPU mode defaults to `float32`, which is faster and sufficient for MACE inference. Use `--dtype float64` to override if higher precision is needed.
+
+**NEB memory note**: NEB runs load one calculator per image. With many images and a large model, this multiplies GPU memory usage. If memory is tight, reduce the number of images or use `--dtype float32` (which is already the default on GPU).
 
 ---
 
