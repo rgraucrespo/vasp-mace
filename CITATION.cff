@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 title: "vasp-mace: a VASP simulator based on the MACE machine-learning interatomic potential"
-version: "2.0.0"
+version: "2.1.0"
 message: "If you use this software, please cite it using the metadata below."
 type: software
 authors:

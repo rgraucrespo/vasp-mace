@@ -1,0 +1,4 @@
+IBRION = 6     # Phonons via symmetry-reduced finite differences (phonopy)
+NFREE  = 2     # Central differences: ± displacements per direction
+POTIM  = 0.015 # Finite-difference displacement amplitude (Å)
+ISIF   = 3     # ISIF≥3: also compute elastic tensor (12 extra strain calculations)

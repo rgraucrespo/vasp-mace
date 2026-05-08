@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-05-08
+
+### Added
+- Elastic tensor calculation triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`, matching VASP behaviour.
+  - Applies 6 Voigt strain patterns ±1% (12 single-point calculations) and finite-differences stress → C_ij.
+  - Full 6×6 elastic tensor in VASP OUTCAR format (kBar, XX YY ZZ XY YZ ZX column order) appended to the existing `OUTCAR`.
+  - Voigt, Reuss, and Hill polycrystalline averages: bulk modulus K, shear modulus G, Young's modulus E, Poisson ratio ν. Formulas are valid for all crystal systems (cubic to triclinic).
+  - Human-readable stdout summary in GPa (ASE Voigt ordering: xx yy zz yz xz xy).
+  - Informational note printed when `PSTRESS > 0` is set alongside `IBRION = 5/6`, clarifying that pressure must be incorporated during the geometry relaxation step.
+- `example09_MgO_elastic`: Γ-point phonons + elastic tensor for the 8-atom MgO conventional cell (`IBRION = 6`, `ISIF = 3`).
+
 ## [2.0.0] - 2026-04-22
 
 ### Added
@@ -116,7 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/rgraucrespo/vasp-mace/compare/v1.4.1...v2.0.0
 [1.4.1]: https://github.com/rgraucrespo/vasp-mace/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/rgraucrespo/vasp-mace/compare/v1.3.0...v1.4.0

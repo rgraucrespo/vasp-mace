@@ -14,6 +14,7 @@ It reads VASP-style inputs (`POSCAR`, `INCAR`) and produces VASP-compatible outp
 - **Molecular dynamics** (NVE, NVT Langevin/Nosé-Hoover/Andersen, NPT Langevin) with XDATCAR output
 - **Nudged Elastic Band (NEB)**: minimum-energy path and transition-state search via ASE's MDMin optimizer; optional climbing-image NEB (`LCLIMB = .TRUE.`, VTST convention)
 - **Phonon calculations**: Γ-point force constants and frequencies via finite differences (`IBRION = 5`); symmetry-reduced displacements via phonopy (`IBRION = 6`), with VASP-compatible `DYNMAT` and `OUTCAR` output
+- **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill polycrystalline averages (K, G, E, ν) via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
 - **Selective dynamics**: per-atom coordinate fixing from POSCAR, preserved in CONTCAR
 - **DFT-D3 dispersion correction** via `IVDW` in INCAR (zero-damping and Becke-Johnson variants, with optional three-body ATM term)
 - **Multiple ISIF modes**: positions-only, full cell relaxation, constant-volume shape relaxation, volume-only
@@ -154,6 +155,7 @@ Finite-difference second derivatives (force constants and phonon frequencies) at
 |-----|---------|-------------|
 | `POTIM` | `0.015` | Displacement amplitude (Å). In phonon mode this sets the finite-difference step, **not** the MD timestep. VASP uses 0.02 Å; either value is acceptable |
 | `NFREE` | `2` | Displacements per degree of freedom: `2` = central differences (±δ, recommended); `1` = forward differences (+δ only) |
+| `ISIF` | `2` | `2` = force constants and phonon frequencies only; `≥ 3` = also compute the elastic tensor (see below) |
 
 **IBRION = 5** computes all N × 3 × NFREE displacements (no symmetry).  
 **IBRION = 6** uses [phonopy](https://phonopy.github.io/phonopy/) to reduce the number of displacements via crystal symmetry. Install with `pip install vasp-mace[phonons]` or `pip install phonopy`. Falls back to IBRION = 5 if phonopy is not installed.
@@ -163,7 +165,7 @@ Output files produced (VASP-compatible format):
 | File | Description |
 |------|-------------|
 | `DYNMAT` | Force-constant matrix in VASP DYNMAT format (central-difference half-forces) |
-| `OUTCAR` | Phonon eigenvalues and eigenvectors (modes ordered high → low frequency) |
+| `OUTCAR` | Phonon eigenvalues and eigenvectors (modes ordered high → low frequency); elastic tensor appended when `ISIF ≥ 3` |
 | `OSZICAR` | One energy line per displaced configuration |
 | `XDATCAR` | Initial + all displaced configurations |
 | `CONTCAR` | Initial (equilibrium) structure |
@@ -172,7 +174,30 @@ Output files produced (VASP-compatible format):
 
 > **Note**: IBRION = 5/6 performs single-point force evaluations only (no ionic relaxation). The structure should be pre-relaxed to a minimum before running phonon calculations.
 
-> **ISIF is ignored for phonon runs.** In VASP, `ISIF ≥ 3` with `IBRION = 5/6` additionally computes the elastic tensor and internal strain tensor. `vasp-mace` currently computes force constants only, regardless of `ISIF`. Elastic constant support is planned for a future release.
+### Elastic constants (IBRION = 5 or 6 with ISIF ≥ 3)
+
+Setting `ISIF ≥ 3` alongside `IBRION = 5/6` activates the elastic tensor calculation, matching VASP behavior. After the phonon displacements are complete, 12 additional single-point calculations are performed (6 Voigt strain patterns × ±1% strain, central differences), and the resulting stress-strain relationship is used to build the full 6×6 elastic tensor C_ij.
+
+The elastic tensor, together with Voigt, Reuss, and Hill polycrystalline averages, is appended to `OUTCAR` in VASP format (kBar units, XX YY ZZ XY YZ ZX column order):
+
+```
+ TOTAL ELASTIC MODULI (kBar)
+ Direction    XX          YY          ZZ          XY          YZ          ZX
+ -----------------------------------------------------------------------------------------
+  XX       2469.846     877.267     877.267       0.000       0.000       0.000
+  ...
+
+ POLYCRYSTALLINE CONSTANTS (Voigt / Reuss / Hill):
+               Bulk modulus K  Shear modulus G  Young mod. E  Poisson ratio
+                        (GPa)           (GPa)         (GPa)
+  Voigt              140.813         102.442
+  Reuss              140.813          98.784
+  Hill               140.813         100.613       243.779        0.2115
+```
+
+A human-readable summary is also printed to stdout (GPa, ASE Voigt ordering xx yy zz yz xz xy).
+
+> **Internal strain tensor**: not computed (vasp-mace computes the macroscopic elastic tensor only).
 
 ### Molecular dynamics (IBRION = 0)
 
@@ -314,6 +339,7 @@ While `vasp-mace` aims for a high degree of compatibility, there are important t
 - **NEB Optimizer**: NEB calculations always use ASE's `MDMin` optimizer (regardless of `IBRION`). `MDMin` projects velocities along the force direction and resets them when the velocity and force point in opposite directions, which prevents the divergence that plagues BFGS and FIRE under non-conservative spring forces. VASP with VTST uses a different quasi-Newton method.
 - **`LCLIMB` tag**: Not a native VASP tag. It originates from the [VTST Tools](https://theory.cm.utexas.edu/vtsttools/neb.html) extension package for VASP. Native VASP (without VTST) does not recognise `LCLIMB` and always runs plain NEB.
 - **Phonon calculations**: IBRION = 5/6 produce `DYNMAT`, `OUTCAR` (eigenvalues + eigenvectors in VASP format), `OSZICAR`, `XDATCAR`, and `CONTCAR`. The `OUTCAR` phonon section is VASP-compatible (modes ordered high → low frequency; `f  =` for real, `f/i=` for imaginary). VASP's electronic-iteration lines in `OSZICAR` are omitted (replaced by a single energy summary line per configuration). `vasprun.xml` is not written for phonon runs.
+- **Elastic constants**: when `ISIF ≥ 3` alongside `IBRION = 5/6`, the elastic tensor is appended to `OUTCAR`. The internal strain tensor (coupling atomic relaxation to macroscopic strain) is not computed.
 
 
 ---
@@ -389,6 +415,7 @@ Ready-to-run examples are provided in the `examples/` directory. Copy an example
 | `example06_Pt_NEB/` | Pt (fcc-001 surface) | CI-NEB for Pt adatom collective jump (`LCLIMB = .TRUE.`, 3 intermediate images) |
 | `example07_PbTe_MD/` | PbTe (rock salt, 512 atoms) | Sequential NVT → NPT Langevin MD; per-species `LANGEVIN_GAMMA` and explicit `PMASS` |
 | `example08_PbTe_phonons/` | PbTe (rock salt, 8 atoms) | Phonon calculation with symmetry reduction (`IBRION = 6`, `NFREE = 2`). Requires `pip install phonopy` |
+| `example09_MgO_elastic/` | MgO (rock salt, 8 atoms) | Phonons + elastic tensor (`IBRION = 6`, `ISIF = 3`): full 6×6 C_ij with Voigt/Reuss/Hill averages appended to OUTCAR |
 
 ### example01 — MgO variable-cell relaxation
 
@@ -513,6 +540,21 @@ vasp-mace --model /path/to/model
 ```
 
 Requires `phonopy` for symmetry reduction: `pip install phonopy` or `pip install vasp-mace[phonons]`.
+
+### example09 — MgO phonons + elastic constants (IBRION = 6, ISIF = 3)
+
+8-atom MgO rock-salt conventional cell. Combines symmetry-reduced phonon calculation with elastic tensor computation. Phonopy reduces the phonon displacements from 48 to just 4, then 12 strain calculations (6 Voigt patterns × ±1%) yield the full 6×6 elastic tensor. The OUTCAR contains both phonon eigenvectors and the elastic tensor block with Voigt/Reuss/Hill averages.
+
+```
+IBRION = 6     # phonons via symmetry-reduced finite differences
+NFREE  = 2     # central differences
+POTIM  = 0.015 # displacement amplitude (Å)
+ISIF   = 3     # also compute elastic tensor
+```
+
+Expected results for MgO with MACE-MP: cubic symmetry (C11=C22=C33 ≈ 247 GPa, C12=C13=C23 ≈ 88 GPa, C44=C55=C66 ≈ 118 GPa), K_Hill ≈ 141 GPa, G_Hill ≈ 101 GPa.
+
+Requires `phonopy`: `pip install phonopy` or `pip install vasp-mace[phonons]`.
 
 ---
 

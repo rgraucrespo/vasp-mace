@@ -86,6 +86,15 @@ def _run():
             f"[info] Model={args.model}, device={device}, dtype={dtype}, "
             f"IBRION={cfg.IBRION}, NFREE={cfg.NFREE}, POTIM={cfg.POTIM} Å"
         )
+        if cfg.PSTRESS != 0.0:
+            print(
+                f"[info] PSTRESS={cfg.PSTRESS} kBar detected in INCAR. Note that PSTRESS does "
+                f"not have any effect on elasticity calculations. Any hydrostatic pressure effect "
+                f"should be incorporated using PSTRESS during the geometry relaxation step. "
+                f"If the structure was pre-relaxed at this pressure its cell will carry the "
+                f"corresponding internal stress, and the elastic constants will reflect the "
+                f"material response at that compressed/expanded volume."
+            )
         from .phonons import run_phonons
         run_phonons(atoms, calc, cfg)
         return

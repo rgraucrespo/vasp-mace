@@ -23,6 +23,9 @@ def run_phonons(atoms: Atoms, calc, cfg) -> None:
     IBRION=5: all N×3×NFREE Cartesian displacements (no symmetry).
     IBRION=6: symmetry-reduced displacements via phonopy; falls back to
               IBRION=5 if phonopy is not installed.
+    ISIF≥3: additionally computes the full 6×6 elastic tensor via stress-strain
+            finite differences (12 extra single-point calculations) and appends
+            results to OUTCAR, matching VASP IBRION=5/6 + ISIF=3 behavior.
 
     Outputs (VASP-compatible):
       DYNMAT, XDATCAR, OSZICAR, OUTCAR, CONTCAR
@@ -35,13 +38,17 @@ def run_phonons(atoms: Atoms, calc, cfg) -> None:
         try:
             import phonopy  # noqa: F401
             _run_with_symmetry(atoms, calc, cfg)
-            return
         except ImportError:
             print("[warn] phonopy not found; IBRION=6 symmetry reduction unavailable. "
                   "Install with `pip install phonopy`. "
                   "Falling back to IBRION=5 (all displacements).")
+            _run_brute_force(atoms, calc, cfg)
+    else:
+        _run_brute_force(atoms, calc, cfg)
 
-    _run_brute_force(atoms, calc, cfg)
+    if cfg.ISIF >= 3:
+        from .elasticity import run_elastic
+        run_elastic(atoms, calc, cfg)
 
 
 # ===========================================================================
