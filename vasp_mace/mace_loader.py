@@ -5,6 +5,7 @@ from contextlib import redirect_stdout, redirect_stderr
 
 # vasp_mace/mace_loader.py
 
+
 def _silenced_import_mace():
     # Import MACECalculator with stdout/stderr and warnings silenced
     buf = io.StringIO()
@@ -14,12 +15,17 @@ def _silenced_import_mace():
             from mace.calculators.mace import MACECalculator
     return MACECalculator
 
-def load_calc(model_path: str, device: str = "auto", dtype: str = "auto", dispersion: bool = False):
+
+def load_calc(
+    model_path: str, device: str = "auto", dtype: str = "auto", dispersion: bool = False
+):
     import os
+
     if not os.path.isfile(model_path):
         raise FileNotFoundError(f"MACE model file not found: {model_path}")
 
     import torch
+
     if device == "auto":
         if torch.cuda.is_available():
             device = "cuda"
@@ -52,7 +58,9 @@ def load_calc(model_path: str, device: str = "auto", dtype: str = "auto", disper
         try:
             calc = _build_calc(device, dtype)
         except Exception as e:
-            print(f"[warning] {device.upper()} device failed ({e}); falling back to CPU/float64.")
+            print(
+                f"[warning] {device.upper()} device failed ({e}); falling back to CPU/float64."
+            )
             device = "cpu"
             dtype = "float64"
             calc = _build_calc(device, dtype)

@@ -40,15 +40,30 @@ class LangevinNPT(MolecularDynamics):
     barostat_friction : float
         Lattice friction coefficient in 1/ASE_time (not fs^-1)
     """
-    def __init__(self, atoms, timestep, temperature_K, externalstress,
-                 friction, barostat_friction, piston_mass,
-                 logfile=None, trajectory=None, loginterval=1):
-        MolecularDynamics.__init__(self, atoms, timestep, trajectory, logfile, loginterval)
+
+    def __init__(
+        self,
+        atoms,
+        timestep,
+        temperature_K,
+        externalstress,
+        friction,
+        barostat_friction,
+        piston_mass,
+        logfile=None,
+        trajectory=None,
+        loginterval=1,
+    ):
+        MolecularDynamics.__init__(
+            self, atoms, timestep, trajectory, logfile, loginterval
+        )
         self.temp_K = temperature_K
         # externalstress: scalar pressure (eV/A^3, compression positive)
         self.p_ext = externalstress
         self.friction = friction  # 1/ASE_time (passed as friction_fs / ASE_FS)
-        self.gamma_L = barostat_friction  # 1/ASE_time (passed as friction_L_fs / ASE_FS)
+        self.gamma_L = (
+            barostat_friction  # 1/ASE_time (passed as friction_L_fs / ASE_FS)
+        )
         self.W = piston_mass  # eV * fs^2
         self.v_eps = 0.0  # strain rate
         self.rng = np.random.default_rng()
@@ -72,14 +87,18 @@ class LangevinNPT(MolecularDynamics):
         # Stochastic terms
         sigma_at = np.sqrt(2.0 * self.friction * kB * self.temp_K / (m * dt))
         rnd_at = self.rng.standard_normal(v.shape) * sigma_at
-        
+
         sigma_L = np.sqrt(2.0 * self.gamma_L * kB * self.temp_K / (self.W * dt))
         rnd_L = self.rng.standard_normal() * sigma_L
 
         # 1. Update velocities (half step)
-        v += 0.5 * dt * (f/m - self.friction * v + rnd_at - self.v_eps * v)
+        v += 0.5 * dt * (f / m - self.friction * v + rnd_at - self.v_eps * v)
         vol = atoms.get_volume()
-        self.v_eps += 0.5 * dt * ((p_int - self.p_ext) * vol / self.W - self.gamma_L * self.v_eps + rnd_L)
+        self.v_eps += (
+            0.5
+            * dt
+            * ((p_int - self.p_ext) * vol / self.W - self.gamma_L * self.v_eps + rnd_L)
+        )
 
         # 2. Update positions and cell (full step)
         pos = atoms.get_positions()
@@ -97,15 +116,28 @@ class LangevinNPT(MolecularDynamics):
         p_int = -np.mean(stress[:3])
 
         # 4. Update velocities (second half step)
-        v += 0.5 * dt * (f/m - self.friction * v + rnd_at - self.v_eps * v)
-        self.v_eps += 0.5 * dt * ((p_int - self.p_ext) * vol_new / self.W - self.gamma_L * self.v_eps + rnd_L)
+        v += 0.5 * dt * (f / m - self.friction * v + rnd_at - self.v_eps * v)
+        self.v_eps += (
+            0.5
+            * dt
+            * (
+                (p_int - self.p_ext) * vol_new / self.W
+                - self.gamma_L * self.v_eps
+                + rnd_L
+            )
+        )
 
         atoms.set_velocities(v)
         return f
 
+
 from .types_ import MDRecord
-from .io_vasp import (write_xdatcar_header, append_xdatcar_frame,
-                      write_md_outcar_header, append_md_outcar_step)
+from .io_vasp import (
+    write_xdatcar_header,
+    append_xdatcar_frame,
+    write_md_outcar_header,
+    append_md_outcar_step,
+)
 
 
 def _per_atom_friction(atoms, langevin_gamma: np.ndarray) -> np.ndarray:
@@ -134,6 +166,7 @@ def _per_atom_friction(atoms, langevin_gamma: np.ndarray) -> np.ndarray:
 
     gamma_map = {s: langevin_gamma[i] for i, s in enumerate(seen)}
     return np.array([gamma_map[s] for s in symbols])
+
 
 ASE_OUT_DIR = "ase_files"
 
@@ -215,7 +248,7 @@ def run_md(atoms, calc, cfg):
 
             # Piston mass (amu; numerically equals eV·ASE_time² in ASE units since 1 amu·Å² = 1 eV·ASE_time²).
             # Use PMASS from INCAR if set, otherwise default to N × 10000 amu.
-            piston_mass = cfg.PMASS if cfg.PMASS > 0.0 else float(N) * (100.0 ** 2)
+            piston_mass = cfg.PMASS if cfg.PMASS > 0.0 else float(N) * (100.0**2)
 
             # LangevinNPT uses friction in 1/ASE_time; reshape to (N,1) for broadcasting
             friction_npt = friction_per_atom_ase.reshape(-1, 1)
@@ -225,7 +258,8 @@ def run_md(atoms, calc, cfg):
                 temperature_K=T_start,
                 externalstress=p_ext,
                 friction=friction_npt,
-                barostat_friction=friction_L_fs / ASE_FS,  # lattice friction: fs^-1 -> ASE_time^-1
+                barostat_friction=friction_L_fs
+                / ASE_FS,  # lattice friction: fs^-1 -> ASE_time^-1
                 piston_mass=piston_mass,
                 logfile=md_log,
             )
@@ -239,12 +273,14 @@ def run_md(atoms, calc, cfg):
                 logfile=md_log,
             )
     else:
-        raise ValueError(f"MDALGO={cfg.MDALGO} is not supported. Use 1 (Andersen/NVE), 2 (Nose-Hoover), or 3 (Langevin).")
+        raise ValueError(
+            f"MDALGO={cfg.MDALGO} is not supported. Use 1 (Andersen/NVE), 2 (Nose-Hoover), or 3 (Langevin)."
+        )
 
     # Write XDATCAR header
     # For Langevin NPT (MDALGO=3, ISIF=3), the cell changes so the header is updated per frame.
     # For all other MD modes (NVE, NVT), the cell is fixed — write the header once.
-    cell_relaxing = (cfg.MDALGO == 3 and cfg.ISIF == 3)
+    cell_relaxing = cfg.MDALGO == 3 and cfg.ISIF == 3
     if not cell_relaxing:
         write_xdatcar_header("XDATCAR", atoms)
     else:
@@ -262,9 +298,9 @@ def run_md(atoms, calc, cfg):
         if do_ramp and cfg.NSW > 1:
             frac = (step - 1) / (cfg.NSW - 1)
             T_target = T_start + frac * (T_end - T_start)
-            if hasattr(dyn, 'set_temperature'):
+            if hasattr(dyn, "set_temperature"):
                 dyn.set_temperature(temperature_K=T_target)
-            elif hasattr(dyn, 'temp_K'):
+            elif hasattr(dyn, "temp_K"):
                 dyn.temp_K = T_target
 
         dyn.run(1)  # single MD step

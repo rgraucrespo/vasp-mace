@@ -10,12 +10,13 @@ from .logging_utils import StepRecord
 # -----------------------------------------------------------------------
 # Unit conversion
 # -----------------------------------------------------------------------
-_EV_A3_TO_KB = 1602.1766   # 1 eV/Å³  →  kBar
+_EV_A3_TO_KB = 1602.1766  # 1 eV/Å³  →  kBar
 
 
 # -----------------------------------------------------------------------
 # INCAR parameter helpers (used by both relax and single-point XML writers)
 # -----------------------------------------------------------------------
+
 
 def _ri(raw: dict, key: str, default: int) -> int:
     """Read an integer INCAR value with a fallback default."""
@@ -37,19 +38,20 @@ def _rf(raw: dict, key: str, default: float) -> float:
 # Internal helpers
 # -----------------------------------------------------------------------
 
+
 def _fmt_fort(val: float, ndigits: int = 8) -> str:
     """Fortran-style scientific notation: sign + '.' + ndigits + 'E' + ±XX.
     e.g. -47.1299506 → '-.47129951E+02'  (ndigits=8)
     """
     if val == 0.0:
         return f" .{'0' * ndigits}E+00"
-    sign = '-' if val < 0 else ' '
+    sign = "-" if val < 0 else " "
     mag = abs(val)
     exp = int(np.floor(np.log10(mag))) + 1
     raw = mag * 10 ** (ndigits - exp)
     mantissa_int = round(raw)
     # carry propagation
-    if mantissa_int >= 10 ** ndigits:
+    if mantissa_int >= 10**ndigits:
         mantissa_int //= 10
         exp += 1
     return f"{sign}.{mantissa_int:0{ndigits}d}E{exp:+03d}"
@@ -61,7 +63,7 @@ def _stress_kB(stress_voigt):
     s = stress_voigt
     c = _EV_A3_TO_KB
     # ASE Voigt: [xx, yy, zz, yz, xz, xy]; VASP order: XX YY ZZ XY YZ ZX
-    return (-s[0]*c, -s[1]*c, -s[2]*c, -s[5]*c, -s[3]*c, -s[4]*c)
+    return (-s[0] * c, -s[1] * c, -s[2] * c, -s[5] * c, -s[3] * c, -s[4] * c)
 
 
 def _stress_matrix_kB(stress_voigt):
@@ -82,24 +84,25 @@ def _rec_basis(cell):
 def _incar_xml_type_val(v_str: str):
     """Guess VASP vasprun.xml type tag and formatted value from raw INCAR string."""
     v = v_str.strip()
-    if v.upper() in ('.TRUE.', '.FALSE.', 'T', 'F'):
-        logical = 'T' if v.upper() in ('.TRUE.', 'T') else 'F'
-        return 'logical', f' {logical}  '
+    if v.upper() in (".TRUE.", ".FALSE.", "T", "F"):
+        logical = "T" if v.upper() in (".TRUE.", "T") else "F"
+        return "logical", f" {logical}  "
     try:
-        return 'int', f'   {int(v)}'
+        return "int", f"   {int(v)}"
     except ValueError:
         pass
     try:
         fval = float(v)
-        return None, f'      {fval:.8f}'
+        return None, f"      {fval:.8f}"
     except ValueError:
         pass
-    return 'string', v
+    return "string", v
 
 
 # -----------------------------------------------------------------------
 # POSCAR / CONTCAR
 # -----------------------------------------------------------------------
+
 
 def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True):
     """
@@ -110,7 +113,9 @@ def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True):
     atoms = read(path)  # ASE handles VASP POSCAR/CONTCAR
 
     if apply_selective_dynamics and "selective_dynamics" in atoms.arrays:
-        sd = np.asarray(atoms.arrays["selective_dynamics"], dtype=bool)  # shape (N,3), T=free, F=fixed
+        sd = np.asarray(
+            atoms.arrays["selective_dynamics"], dtype=bool
+        )  # shape (N,3), T=free, F=fixed
         constraints = []
 
         # Build per-atom FixCartesian constraints for components marked F
@@ -155,6 +160,7 @@ def write_contcar(path: str, atoms):
 # OUTCAR — MD (incremental writers)
 # -----------------------------------------------------------------------
 
+
 def write_md_outcar_header(path: str, atoms, incar_raw: Optional[dict] = None) -> None:
     """Write the OUTCAR header for an MD run (called once before the loop)."""
     symbols = atoms.get_chemical_symbols()
@@ -176,18 +182,21 @@ def write_md_outcar_header(path: str, atoms, incar_raw: Optional[dict] = None) -
                 f.write(f"   {k} = {v}\n")
             f.write("\n")
         f.write(" ions per type =  " + "  ".join(str(c) for c in counts) + "\n")
-        f.write(" POMASS = " + "  ".join(
-            f"{atoms.get_masses()[symbols.index(sp)]:.3f}" for sp in seen) + "\n\n")
+        f.write(
+            " POMASS = "
+            + "  ".join(f"{atoms.get_masses()[symbols.index(sp)]:.3f}" for sp in seen)
+            + "\n\n"
+        )
         f.write(" " + "-" * 102 + "\n\n")
 
 
-def append_md_outcar_step(path: str, atoms, n: int,
-                           energy_pot: float, energy_kin: float,
-                           temperature: float) -> None:
+def append_md_outcar_step(
+    path: str, atoms, n: int, energy_pot: float, energy_kin: float, temperature: float
+) -> None:
     """Append one MD ionic-step block to OUTCAR (called every step)."""
     cell = np.array(atoms.get_cell())
-    pos  = atoms.get_positions()
-    vol  = float(np.linalg.det(cell))
+    pos = atoms.get_positions()
+    vol = float(np.linalg.det(cell))
     rec_b = _rec_basis(cell)
     lens_d = np.linalg.norm(cell, axis=1)
     lens_r = np.linalg.norm(rec_b, axis=1)
@@ -203,63 +212,90 @@ def append_md_outcar_step(path: str, atoms, n: int,
         sv = None
 
     with open(path, "a") as f:
-        f.write(f"\n --------------------------------------- "
-                f"Iteration{n:6d}(   1)  "
-                f"---------------------------------------\n\n")
+        f.write(
+            f"\n --------------------------------------- "
+            f"Iteration{n:6d}(   1)  "
+            f"---------------------------------------\n\n"
+        )
 
         if sv is not None:
             XX, YY, ZZ, XY, YZ, ZX = _stress_kB(sv)
-            tXX, tYY, tZZ = -sv[0]*vol, -sv[1]*vol, -sv[2]*vol
-            tXY, tYZ, tZX = -sv[5]*vol, -sv[3]*vol, -sv[4]*vol
+            tXX, tYY, tZZ = -sv[0] * vol, -sv[1] * vol, -sv[2] * vol
+            tXY, tYZ, tZX = -sv[5] * vol, -sv[3] * vol, -sv[4] * vol
             ext_p = (XX + YY + ZZ) / 3.0
             f.write("  FORCE on cell =-STRESS in cart. coord.  units (eV):\n")
-            f.write("  Direction    XX          YY          ZZ"
-                    "          XY          YZ          ZX\n")
+            f.write(
+                "  Direction    XX          YY          ZZ"
+                "          XY          YZ          ZX\n"
+            )
             f.write("  " + "-" * 86 + "\n")
-            f.write(f"  Total   {tXX:11.5f} {tYY:11.5f} {tZZ:11.5f}"
-                    f" {tXY:11.5f} {tYZ:11.5f} {tZX:11.5f}\n")
-            f.write(f"  in kB   {XX:11.5f} {YY:11.5f} {ZZ:11.5f}"
-                    f" {XY:11.5f} {YZ:11.5f} {ZX:11.5f}\n")
-            f.write(f"  external pressure ={ext_p:12.2f} kB"
-                    f"  Pullay stress =        0.00 kB\n\n")
+            f.write(
+                f"  Total   {tXX:11.5f} {tYY:11.5f} {tZZ:11.5f}"
+                f" {tXY:11.5f} {tYZ:11.5f} {tZX:11.5f}\n"
+            )
+            f.write(
+                f"  in kB   {XX:11.5f} {YY:11.5f} {ZZ:11.5f}"
+                f" {XY:11.5f} {YZ:11.5f} {ZX:11.5f}\n"
+            )
+            f.write(
+                f"  external pressure ={ext_p:12.2f} kB"
+                f"  Pullay stress =        0.00 kB\n\n"
+            )
 
         f.write(" VOLUME and BASIS-vectors are now :\n")
         f.write(" " + "-" * 77 + "\n")
         f.write(f"  volume of cell :{vol:12.2f}\n")
-        f.write("      direct lattice vectors"
-                "                 reciprocal lattice vectors\n")
+        f.write(
+            "      direct lattice vectors"
+            "                 reciprocal lattice vectors\n"
+        )
         for i in range(3):
-            f.write(f"  {cell[i,0]:12.9f} {cell[i,1]:12.9f} {cell[i,2]:12.9f}"
-                    f"   {rec_b[i,0]:12.9f} {rec_b[i,1]:12.9f} {rec_b[i,2]:12.9f}\n")
+            f.write(
+                f"  {cell[i,0]:12.9f} {cell[i,1]:12.9f} {cell[i,2]:12.9f}"
+                f"   {rec_b[i,0]:12.9f} {rec_b[i,1]:12.9f} {rec_b[i,2]:12.9f}\n"
+            )
         f.write("\n  length of vectors\n")
-        f.write(f"  {lens_d[0]:12.9f} {lens_d[1]:12.9f} {lens_d[2]:12.9f}"
-                f"   {lens_r[0]:12.9f} {lens_r[1]:12.9f} {lens_r[2]:12.9f}\n\n")
+        f.write(
+            f"  {lens_d[0]:12.9f} {lens_d[1]:12.9f} {lens_d[2]:12.9f}"
+            f"   {lens_r[0]:12.9f} {lens_r[1]:12.9f} {lens_r[2]:12.9f}\n\n"
+        )
 
-        f.write(" POSITION                                       TOTAL-FORCE (eV/Angst)\n")
+        f.write(
+            " POSITION                                       TOTAL-FORCE (eV/Angst)\n"
+        )
         f.write(" " + "-" * 83 + "\n")
         for p, fv in zip(pos, frc):
-            f.write(f" {p[0]:12.5f} {p[1]:12.5f} {p[2]:12.5f}"
-                    f"    {fv[0]:13.6f} {fv[1]:13.6f} {fv[2]:13.6f}\n")
+            f.write(
+                f" {p[0]:12.5f} {p[1]:12.5f} {p[2]:12.5f}"
+                f"    {fv[0]:13.6f} {fv[1]:13.6f} {fv[2]:13.6f}\n"
+            )
         f.write(" " + "-" * 83 + "\n")
         drift = np.sum(frc, axis=0)
-        f.write(f"    total drift:                               "
-                f"{drift[0]:13.6f} {drift[1]:13.6f} {drift[2]:13.6f}\n\n")
+        f.write(
+            f"    total drift:                               "
+            f"{drift[0]:13.6f} {drift[1]:13.6f} {drift[2]:13.6f}\n\n"
+        )
 
         e_tot = energy_pot + energy_kin
         f.write("\n  FREE ENERGIE OF THE ION-ELECTRON SYSTEM (eV)\n")
         f.write("  ---------------------------------------------------\n")
         f.write(f"  free  energy   TOTEN  =     {energy_pot:20.8f} eV\n\n")
-        f.write(f"  energy  without entropy=    {energy_pot:20.8f}"
-                f"  energy(sigma->0) =    {energy_pot:20.8f}\n\n")
+        f.write(
+            f"  energy  without entropy=    {energy_pot:20.8f}"
+            f"  energy(sigma->0) =    {energy_pot:20.8f}\n\n"
+        )
         f.write(f"  kinetic Energy EKIN   =     {energy_kin:20.8f} eV\n")
-        f.write(f"  total energy   ETOTAL =     {e_tot:20.8f} eV"
-                f"  temperature  {temperature:10.2f} K\n\n")
+        f.write(
+            f"  total energy   ETOTAL =     {e_tot:20.8f} eV"
+            f"  temperature  {temperature:10.2f} K\n\n"
+        )
         f.write(" " + "-" * 102 + "\n")
 
 
 # -----------------------------------------------------------------------
 # OSZICAR
 # -----------------------------------------------------------------------
+
 
 def write_oszicar(path: str, steps: List[StepRecord]) -> None:
     """VASP-style OSZICAR: one ionic-step line per step.
@@ -271,7 +307,7 @@ def write_oszicar(path: str, steps: List[StepRecord]) -> None:
     """
     with open(path, "w") as f:
         for s in steps:
-            E_str  = _fmt_fort(s.energy, 8)
+            E_str = _fmt_fort(s.energy, 8)
             dE_val = s.energy if s.n == 1 else s.dE
             dE_str = _fmt_fort(dE_val, 6)
             f.write(f"   {s.n:3d} F= {E_str} E0= {E_str}  d E ={dE_str}\n")
@@ -280,6 +316,7 @@ def write_oszicar(path: str, steps: List[StepRecord]) -> None:
 # -----------------------------------------------------------------------
 # OUTCAR
 # -----------------------------------------------------------------------
+
 
 def write_outcar(
     path: str,
@@ -322,42 +359,55 @@ def write_outcar(
                 counts.append(0)
             counts[seen[sym]] += 1
         f.write("  ".join(str(c) for c in counts) + "\n")
-        f.write(" POMASS = " + "  ".join(f"{atoms.get_masses()[symbols.index(sp)]:.3f}"
-                                         for sp in seen) + "\n\n")
+        f.write(
+            " POMASS = "
+            + "  ".join(f"{atoms.get_masses()[symbols.index(sp)]:.3f}" for sp in seen)
+            + "\n\n"
+        )
         f.write(" " + "-" * 102 + "\n\n")
 
         # ---- Per-ionic-step blocks ----
         for rec in steps:
             cell = rec.cell if rec.cell is not None else np.array(atoms.get_cell())
-            pos  = rec.positions if rec.positions is not None else atoms.get_positions()
-            frc  = rec.forces    if rec.forces    is not None else atoms.get_forces()
-            sv   = rec.stress    # may be None
+            pos = rec.positions if rec.positions is not None else atoms.get_positions()
+            frc = rec.forces if rec.forces is not None else atoms.get_forces()
+            sv = rec.stress  # may be None
 
             vol = float(np.linalg.det(cell))
 
             # Separator
-            f.write(f"\n --------------------------------------- "
-                    f"Iteration{rec.n:6d}(   1)  "
-                    f"---------------------------------------\n\n")
+            f.write(
+                f"\n --------------------------------------- "
+                f"Iteration{rec.n:6d}(   1)  "
+                f"---------------------------------------\n\n"
+            )
 
             # -- Stress / Force on cell --
             if sv is not None:
                 XX, YY, ZZ, XY, YZ, ZX = _stress_kB(sv)
                 # Total = stress * volume (eV, compressive positive)
-                tXX, tYY, tZZ = -sv[0]*vol, -sv[1]*vol, -sv[2]*vol
-                tXY, tYZ, tZX = -sv[5]*vol, -sv[3]*vol, -sv[4]*vol
+                tXX, tYY, tZZ = -sv[0] * vol, -sv[1] * vol, -sv[2] * vol
+                tXY, tYZ, tZX = -sv[5] * vol, -sv[3] * vol, -sv[4] * vol
                 ext_p = (XX + YY + ZZ) / 3.0
 
                 f.write("  FORCE on cell =-STRESS in cart. coord.  units (eV):\n")
-                f.write("  Direction    XX          YY          ZZ"
-                        "          XY          YZ          ZX\n")
+                f.write(
+                    "  Direction    XX          YY          ZZ"
+                    "          XY          YZ          ZX\n"
+                )
                 f.write("  " + "-" * 86 + "\n")
-                f.write(f"  Total   {tXX:11.5f} {tYY:11.5f} {tZZ:11.5f}"
-                        f" {tXY:11.5f} {tYZ:11.5f} {tZX:11.5f}\n")
-                f.write(f"  in kB   {XX:11.5f} {YY:11.5f} {ZZ:11.5f}"
-                        f" {XY:11.5f} {YZ:11.5f} {ZX:11.5f}\n")
-                f.write(f"  external pressure ={ext_p:12.2f} kB"
-                        f"  Pullay stress =        0.00 kB\n\n")
+                f.write(
+                    f"  Total   {tXX:11.5f} {tYY:11.5f} {tZZ:11.5f}"
+                    f" {tXY:11.5f} {tYZ:11.5f} {tZX:11.5f}\n"
+                )
+                f.write(
+                    f"  in kB   {XX:11.5f} {YY:11.5f} {ZZ:11.5f}"
+                    f" {XY:11.5f} {YZ:11.5f} {ZX:11.5f}\n"
+                )
+                f.write(
+                    f"  external pressure ={ext_p:12.2f} kB"
+                    f"  Pullay stress =        0.00 kB\n\n"
+                )
 
             # -- Volume and basis vectors --
             rec_b = _rec_basis(cell)
@@ -366,39 +416,55 @@ def write_outcar(
             f.write(" VOLUME and BASIS-vectors are now :\n")
             f.write(" " + "-" * 77 + "\n")
             f.write(f"  volume of cell :{vol:12.2f}\n")
-            f.write("      direct lattice vectors"
-                    "                 reciprocal lattice vectors\n")
+            f.write(
+                "      direct lattice vectors"
+                "                 reciprocal lattice vectors\n"
+            )
             for i in range(3):
-                f.write(f"  {cell[i,0]:12.9f} {cell[i,1]:12.9f} {cell[i,2]:12.9f}"
-                        f"   {rec_b[i,0]:12.9f} {rec_b[i,1]:12.9f} {rec_b[i,2]:12.9f}\n")
+                f.write(
+                    f"  {cell[i,0]:12.9f} {cell[i,1]:12.9f} {cell[i,2]:12.9f}"
+                    f"   {rec_b[i,0]:12.9f} {rec_b[i,1]:12.9f} {rec_b[i,2]:12.9f}\n"
+                )
             f.write("\n  length of vectors\n")
-            f.write(f"  {lens_d[0]:12.9f} {lens_d[1]:12.9f} {lens_d[2]:12.9f}"
-                    f"   {lens_r[0]:12.9f} {lens_r[1]:12.9f} {lens_r[2]:12.9f}\n\n")
+            f.write(
+                f"  {lens_d[0]:12.9f} {lens_d[1]:12.9f} {lens_d[2]:12.9f}"
+                f"   {lens_r[0]:12.9f} {lens_r[1]:12.9f} {lens_r[2]:12.9f}\n\n"
+            )
 
             # -- Position / force --
-            f.write(" POSITION                                       TOTAL-FORCE (eV/Angst)\n")
+            f.write(
+                " POSITION                                       TOTAL-FORCE (eV/Angst)\n"
+            )
             f.write(" " + "-" * 83 + "\n")
             for p, fv in zip(pos, frc):
-                f.write(f" {p[0]:12.5f} {p[1]:12.5f} {p[2]:12.5f}"
-                        f"    {fv[0]:13.6f} {fv[1]:13.6f} {fv[2]:13.6f}\n")
+                f.write(
+                    f" {p[0]:12.5f} {p[1]:12.5f} {p[2]:12.5f}"
+                    f"    {fv[0]:13.6f} {fv[1]:13.6f} {fv[2]:13.6f}\n"
+                )
             f.write(" " + "-" * 83 + "\n")
             drift = np.sum(frc, axis=0)
-            f.write(f"    total drift:                               "
-                    f"{drift[0]:13.6f} {drift[1]:13.6f} {drift[2]:13.6f}\n\n")
+            f.write(
+                f"    total drift:                               "
+                f"{drift[0]:13.6f} {drift[1]:13.6f} {drift[2]:13.6f}\n\n"
+            )
 
             # -- Energy --
             f.write("\n  FREE ENERGIE OF THE ION-ELECTRON SYSTEM (eV)\n")
             f.write("  ---------------------------------------------------\n")
             f.write(f"  free  energy   TOTEN  =     {rec.energy:20.8f} eV\n\n")
-            f.write(f"  energy  without entropy=    {rec.energy:20.8f}"
-                    f"  energy(sigma->0) =    {rec.energy:20.8f}\n\n")
+            f.write(
+                f"  energy  without entropy=    {rec.energy:20.8f}"
+                f"  energy(sigma->0) =    {rec.energy:20.8f}\n\n"
+            )
 
             f.write(" " + "-" * 102 + "\n")
 
         # ---- Convergence message ----
         if converged:
-            f.write("\n reached required accuracy"
-                    " - stopping structural energy minimisation\n")
+            f.write(
+                "\n reached required accuracy"
+                " - stopping structural energy minimisation\n"
+            )
         else:
             f.write("\n maximum ionic steps (NSW) exceeded\n")
 
@@ -406,8 +472,9 @@ def write_outcar(
         write_outcar_tail(path, elapsed, cpu_time, mode="a")
 
 
-def write_outcar_tail(path: str, elapsed: float, cpu_time: float = None,
-                      mode: str = "a") -> None:
+def write_outcar_tail(
+    path: str, elapsed: float, cpu_time: float = None, mode: str = "a"
+) -> None:
     """Append (or write) the VASP-style timing footer to an OUTCAR file."""
     cpu = cpu_time if cpu_time is not None else elapsed
     with open(path, mode) as f:
@@ -420,8 +487,16 @@ def write_outcar_tail(path: str, elapsed: float, cpu_time: float = None,
 
 
 # Backward-compatible alias used for single-point in cli.py
-def write_outcar_like(path, atoms, steps, stress=None,
-                      incar_raw=None, converged=True, elapsed=0.0, cpu_time=None):
+def write_outcar_like(
+    path,
+    atoms,
+    steps,
+    stress=None,
+    incar_raw=None,
+    converged=True,
+    elapsed=0.0,
+    cpu_time=None,
+):
     """Thin wrapper kept for backward compatibility; delegates to write_outcar."""
     # For single-point SimpleNamespace records that lack the new fields,
     # upgrade them if a stress array was passed separately.
@@ -432,20 +507,37 @@ def write_outcar_like(path, atoms, steps, stress=None,
         else:
             # Wrap SimpleNamespace → StepRecord
             sv = np.array(stress) if stress is not None else None
-            upgraded.append(StepRecord(
-                n=s.n, energy=s.energy, dE=s.dE, fmax=s.fmax,
-                positions=atoms.get_positions().copy(),
-                forces=atoms.get_forces().copy() if hasattr(atoms, 'get_forces') else None,
-                stress=sv,
-                cell=np.array(atoms.get_cell()).copy(),
-            ))
-    write_outcar(path, atoms, upgraded, incar_raw=incar_raw,
-                 converged=converged, elapsed=elapsed, cpu_time=cpu_time)
+            upgraded.append(
+                StepRecord(
+                    n=s.n,
+                    energy=s.energy,
+                    dE=s.dE,
+                    fmax=s.fmax,
+                    positions=atoms.get_positions().copy(),
+                    forces=(
+                        atoms.get_forces().copy()
+                        if hasattr(atoms, "get_forces")
+                        else None
+                    ),
+                    stress=sv,
+                    cell=np.array(atoms.get_cell()).copy(),
+                )
+            )
+    write_outcar(
+        path,
+        atoms,
+        upgraded,
+        incar_raw=incar_raw,
+        converged=converged,
+        elapsed=elapsed,
+        cpu_time=cpu_time,
+    )
 
 
 # -----------------------------------------------------------------------
 # vasprun.xml — relaxation
 # -----------------------------------------------------------------------
+
 
 def _xml_crystal_block(parent, cell):
     """Append <crystal> with basis, volume, rec_basis to *parent*."""
@@ -498,11 +590,11 @@ def write_relax_vasprun_xml(
     gen = ET.SubElement(root, "generator")
     now = datetime.datetime.now()
     for name, typ, val in [
-        ("program",    "string", "vasp "),
-        ("version",    "string", "mace-ase  "),
-        ("platform",   "string", "mace-ase"),
-        ("date",       "string", now.strftime("%Y %m %d")),
-        ("time",       "string", now.strftime("%H:%M:%S")),
+        ("program", "string", "vasp "),
+        ("version", "string", "mace-ase  "),
+        ("platform", "string", "mace-ase"),
+        ("date", "string", now.strftime("%Y %m %d")),
+        ("time", "string", now.strftime("%H:%M:%S")),
     ]:
         ET.SubElement(gen, "i", attrib={"name": name, "type": typ}).text = val
 
@@ -521,19 +613,35 @@ def write_relax_vasprun_xml(
     raw = incar_raw or {}
     params_el = ET.SubElement(root, "parameters")
     sep_elec = ET.SubElement(params_el, "separator", attrib={"name": "electronic"})
-    ET.SubElement(sep_elec, "i", attrib={"type": "int",     "name": "NELM"}).text    = f"   {_ri(raw, 'NELM', 60)}"
-    ET.SubElement(sep_elec, "i", attrib={"type": "logical", "name": "LCHIMAG"}).text = " F  "
-    ET.SubElement(sep_elec, "i", attrib={               "name": "EDIFF"}).text       = f"      {_rf(raw, 'EDIFF', 1e-4):.8f}"
-    sep_ion  = ET.SubElement(params_el, "separator", attrib={"name": "ionic"})
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "NSW"}).text     = f"   {_ri(raw, 'NSW', 0)}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "IBRION"}).text  = f"   {_ri(raw, 'IBRION', -1)}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "ISIF"}).text    = f"   {_ri(raw, 'ISIF', 2)}"
-    ET.SubElement(sep_ion,  "i", attrib={               "name": "EDIFFG"}).text      = f"      {_rf(raw, 'EDIFFG', -0.05):.8f}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "LORBIT"}).text  = f"   {_ri(raw, 'LORBIT', 0)}"
+    ET.SubElement(sep_elec, "i", attrib={"type": "int", "name": "NELM"}).text = (
+        f"   {_ri(raw, 'NELM', 60)}"
+    )
+    ET.SubElement(sep_elec, "i", attrib={"type": "logical", "name": "LCHIMAG"}).text = (
+        " F  "
+    )
+    ET.SubElement(sep_elec, "i", attrib={"name": "EDIFF"}).text = (
+        f"      {_rf(raw, 'EDIFF', 1e-4):.8f}"
+    )
+    sep_ion = ET.SubElement(params_el, "separator", attrib={"name": "ionic"})
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "NSW"}).text = (
+        f"   {_ri(raw, 'NSW', 0)}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "IBRION"}).text = (
+        f"   {_ri(raw, 'IBRION', -1)}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "ISIF"}).text = (
+        f"   {_ri(raw, 'ISIF', 2)}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"name": "EDIFFG"}).text = (
+        f"      {_rf(raw, 'EDIFFG', -0.05):.8f}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "LORBIT"}).text = (
+        f"   {_ri(raw, 'LORBIT', 0)}"
+    )
 
     # ---- atominfo ----
     symbols = atoms.get_chemical_symbols()
-    masses  = atoms.get_masses()
+    masses = atoms.get_masses()
 
     # Build ordered species list preserving POSCAR order
     seen_sp = {}
@@ -570,21 +678,31 @@ def write_relax_vasprun_xml(
     ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = "element"
     ET.SubElement(arr_types, "field").text = "mass"
     ET.SubElement(arr_types, "field").text = "valence"
-    ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = "pseudopotential"
+    ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = (
+        "pseudopotential"
+    )
     tset = ET.SubElement(arr_types, "set")
     for sp in species_order:
         rc = ET.SubElement(tset, "rc")
         ET.SubElement(rc, "c").text = f"  {type_counts[seen_sp[sp]]:5d}"
         ET.SubElement(rc, "c").text = sp
         ET.SubElement(rc, "c").text = f"  {type_masses[sp]:16.8f}"
-        ET.SubElement(rc, "c").text = f"       0.00000000"   # valence (not tracked by MACE)
+        ET.SubElement(rc, "c").text = (
+            f"       0.00000000"  # valence (not tracked by MACE)
+        )
         ET.SubElement(rc, "c").text = f"  PAW_PBE {sp} (MACE)                    "
 
     # ---- initialpos ----
-    init_cell = (steps[0].cell if steps and steps[0].cell is not None
-                 else np.array(atoms_initial.get_cell()))
-    init_pos  = (steps[0].positions if steps and steps[0].positions is not None
-                 else atoms_initial.get_positions())
+    init_cell = (
+        steps[0].cell
+        if steps and steps[0].cell is not None
+        else np.array(atoms_initial.get_cell())
+    )
+    init_pos = (
+        steps[0].positions
+        if steps and steps[0].positions is not None
+        else atoms_initial.get_positions()
+    )
 
     initpos = ET.SubElement(root, "structure", attrib={"name": "initialpos"})
     _xml_crystal_block(initpos, init_cell)
@@ -593,9 +711,9 @@ def write_relax_vasprun_xml(
     # ---- per-step calculations ----
     for rec in steps:
         cell = rec.cell if rec.cell is not None else np.array(atoms.get_cell())
-        pos  = rec.positions if rec.positions is not None else atoms.get_positions()
-        frc  = rec.forces if rec.forces is not None else atoms.get_forces()
-        sv   = rec.stress
+        pos = rec.positions if rec.positions is not None else atoms.get_positions()
+        frc = rec.forces if rec.forces is not None else atoms.get_forces()
+        sv = rec.stress
 
         calc = ET.SubElement(root, "calculation")
 
@@ -611,25 +729,25 @@ def write_relax_vasprun_xml(
         # forces
         fv_el = ET.SubElement(calc, "varray", attrib={"name": "forces"})
         for fv in frc:
-            ET.SubElement(fv_el, "v").text = (f"  {fv[0]:16.8f}"
-                                               f" {fv[1]:16.8f}"
-                                               f" {fv[2]:16.8f} ")
+            ET.SubElement(fv_el, "v").text = (
+                f"  {fv[0]:16.8f}" f" {fv[1]:16.8f}" f" {fv[2]:16.8f} "
+            )
 
         # stress (3×3, kB, compressive-positive)
         if sv is not None:
             mat = _stress_matrix_kB(sv)
             sv_el = ET.SubElement(calc, "varray", attrib={"name": "stress"})
             for row in mat:
-                ET.SubElement(sv_el, "v").text = (f"  {row[0]:16.8f}"
-                                                   f" {row[1]:16.8f}"
-                                                   f" {row[2]:16.8f} ")
+                ET.SubElement(sv_el, "v").text = (
+                    f"  {row[0]:16.8f}" f" {row[1]:16.8f}" f" {row[2]:16.8f} "
+                )
 
         # energy summary at end of calculation block
         _xml_energy_block(calc, rec.energy)
 
     # ---- finalpos ----
     final_cell = np.array(atoms.get_cell())
-    final_pos  = atoms.get_positions()
+    final_pos = atoms.get_positions()
     finpos = ET.SubElement(root, "structure", attrib={"name": "finalpos"})
     _xml_crystal_block(finpos, final_cell)
     _xml_positions_block(finpos, final_cell, final_pos)
@@ -645,6 +763,7 @@ def write_relax_vasprun_xml(
 # -----------------------------------------------------------------------
 # vasprun.xml — single-point
 # -----------------------------------------------------------------------
+
 
 def write_single_vasprun_xml(
     path: str,
@@ -666,11 +785,11 @@ def write_single_vasprun_xml(
     gen = ET.SubElement(root, "generator")
     now = datetime.datetime.now()
     for name, typ, val in [
-        ("program",  "string", "vasp "),
-        ("version",  "string", "mace-ase  "),
+        ("program", "string", "vasp "),
+        ("version", "string", "mace-ase  "),
         ("platform", "string", "mace-ase"),
-        ("date",     "string", now.strftime("%Y %m %d")),
-        ("time",     "string", now.strftime("%H:%M:%S")),
+        ("date", "string", now.strftime("%Y %m %d")),
+        ("time", "string", now.strftime("%H:%M:%S")),
     ]:
         ET.SubElement(gen, "i", attrib={"name": name, "type": typ}).text = val
 
@@ -688,19 +807,35 @@ def write_single_vasprun_xml(
     raw = incar_raw or {}
     params_el = ET.SubElement(root, "parameters")
     sep_elec = ET.SubElement(params_el, "separator", attrib={"name": "electronic"})
-    ET.SubElement(sep_elec, "i", attrib={"type": "int",     "name": "NELM"}).text    = f"   {_ri(raw, 'NELM', 60)}"
-    ET.SubElement(sep_elec, "i", attrib={"type": "logical", "name": "LCHIMAG"}).text = " F  "
-    ET.SubElement(sep_elec, "i", attrib={               "name": "EDIFF"}).text       = f"      {_rf(raw, 'EDIFF', 1e-4):.8f}"
-    sep_ion  = ET.SubElement(params_el, "separator", attrib={"name": "ionic"})
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "NSW"}).text     = f"   {_ri(raw, 'NSW', 0)}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "IBRION"}).text  = f"   {_ri(raw, 'IBRION', -1)}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "ISIF"}).text    = f"   {_ri(raw, 'ISIF', 2)}"
-    ET.SubElement(sep_ion,  "i", attrib={               "name": "EDIFFG"}).text      = f"      {_rf(raw, 'EDIFFG', -0.05):.8f}"
-    ET.SubElement(sep_ion,  "i", attrib={"type": "int",     "name": "LORBIT"}).text  = f"   {_ri(raw, 'LORBIT', 0)}"
+    ET.SubElement(sep_elec, "i", attrib={"type": "int", "name": "NELM"}).text = (
+        f"   {_ri(raw, 'NELM', 60)}"
+    )
+    ET.SubElement(sep_elec, "i", attrib={"type": "logical", "name": "LCHIMAG"}).text = (
+        " F  "
+    )
+    ET.SubElement(sep_elec, "i", attrib={"name": "EDIFF"}).text = (
+        f"      {_rf(raw, 'EDIFF', 1e-4):.8f}"
+    )
+    sep_ion = ET.SubElement(params_el, "separator", attrib={"name": "ionic"})
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "NSW"}).text = (
+        f"   {_ri(raw, 'NSW', 0)}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "IBRION"}).text = (
+        f"   {_ri(raw, 'IBRION', -1)}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "ISIF"}).text = (
+        f"   {_ri(raw, 'ISIF', 2)}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"name": "EDIFFG"}).text = (
+        f"      {_rf(raw, 'EDIFFG', -0.05):.8f}"
+    )
+    ET.SubElement(sep_ion, "i", attrib={"type": "int", "name": "LORBIT"}).text = (
+        f"   {_ri(raw, 'LORBIT', 0)}"
+    )
 
     # ---- atominfo ----
     symbols = atoms.get_chemical_symbols()
-    masses  = atoms.get_masses()
+    masses = atoms.get_masses()
 
     seen_sp = {}
     species_order = []
@@ -736,7 +871,9 @@ def write_single_vasprun_xml(
     ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = "element"
     ET.SubElement(arr_types, "field").text = "mass"
     ET.SubElement(arr_types, "field").text = "valence"
-    ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = "pseudopotential"
+    ET.SubElement(arr_types, "field", attrib={"type": "string"}).text = (
+        "pseudopotential"
+    )
     tset = ET.SubElement(arr_types, "set")
     for sp in species_order:
         rc = ET.SubElement(tset, "rc")
@@ -768,17 +905,17 @@ def write_single_vasprun_xml(
     # forces: 16.8f fixed-point (matches relax writer and VASP format)
     farr = ET.SubElement(calc_el, "varray", attrib={"name": "forces"})
     for fv in np.asarray(forces, dtype=float):
-        ET.SubElement(farr, "v").text = (f"  {float(fv[0]):16.8f}"
-                                          f" {float(fv[1]):16.8f}"
-                                          f" {float(fv[2]):16.8f} ")
+        ET.SubElement(farr, "v").text = (
+            f"  {float(fv[0]):16.8f}" f" {float(fv[1]):16.8f}" f" {float(fv[2]):16.8f} "
+        )
 
     if stress is not None:
         mat = _stress_matrix_kB(np.asarray(stress))
         sarr = ET.SubElement(calc_el, "varray", attrib={"name": "stress"})
         for row in mat:
-            ET.SubElement(sarr, "v").text = (f"  {row[0]:16.8f}"
-                                              f" {row[1]:16.8f}"
-                                              f" {row[2]:16.8f} ")
+            ET.SubElement(sarr, "v").text = (
+                f"  {row[0]:16.8f}" f" {row[1]:16.8f}" f" {row[2]:16.8f} "
+            )
 
     if energy is not None:
         _xml_energy_block(calc_el, float(energy))
@@ -799,6 +936,7 @@ def write_single_vasprun_xml(
 # -----------------------------------------------------------------------
 # XDATCAR
 # -----------------------------------------------------------------------
+
 
 def _xdatcar_header_lines(atoms) -> str:
     """Return the XDATCAR header block (title, scale, cell, species, counts)."""
@@ -828,8 +966,9 @@ def write_xdatcar_header(path: str, atoms) -> None:
         f.write(_xdatcar_header_lines(atoms))
 
 
-def append_xdatcar_frame(path: str, atoms, step: int,
-                         update_header: bool = False) -> None:
+def append_xdatcar_frame(
+    path: str, atoms, step: int, update_header: bool = False
+) -> None:
     """Append one frame of fractional coordinates to XDATCAR.
 
     Parameters

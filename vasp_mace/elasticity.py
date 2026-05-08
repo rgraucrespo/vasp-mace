@@ -1,14 +1,14 @@
 import numpy as np
 
-STRAIN_AMP = 0.01          # dimensionless Voigt strain amplitude (1%)
-EV_A3_TO_GPA = 160.21766   # 1 eV/Å³ in GPa
+STRAIN_AMP = 0.01  # dimensionless Voigt strain amplitude (1%)
+EV_A3_TO_GPA = 160.21766  # 1 eV/Å³ in GPa
 EV_A3_TO_KBAR = 1602.1766  # 1 eV/Å³ in kBar
 
 # ASE Voigt ordering: [xx, yy, zz, yz, xz, xy]  (indices 0-5)
 # VASP OUTCAR ordering: XX YY ZZ XY YZ ZX        (permute with [0,1,2,5,3,4])
-_ASE_LABELS  = ["xx", "yy", "zz", "yz", "xz", "xy"]
+_ASE_LABELS = ["xx", "yy", "zz", "yz", "xz", "xy"]
 _VASP_LABELS = ["XX", "YY", "ZZ", "XY", "YZ", "ZX"]
-_TO_VASP     = [0, 1, 2, 5, 3, 4]   # ASE index → VASP column/row position
+_TO_VASP = [0, 1, 2, 5, 3, 4]  # ASE index → VASP column/row position
 
 
 def _strain_matrix(voigt_idx: int, delta: float) -> np.ndarray:
@@ -31,18 +31,28 @@ def _strain_matrix(voigt_idx: int, delta: float) -> np.ndarray:
 
 def _voigt_averages(C: np.ndarray):
     """Voigt upper-bound bulk and shear moduli (GPa) from 6×6 C (ASE Voigt)."""
-    K_v = (C[0,0]+C[1,1]+C[2,2] + 2*(C[0,1]+C[0,2]+C[1,2])) / 9
-    G_v = (C[0,0]+C[1,1]+C[2,2] - C[0,1]-C[0,2]-C[1,2]
-           + 3*(C[3,3]+C[4,4]+C[5,5])) / 15
+    K_v = (C[0, 0] + C[1, 1] + C[2, 2] + 2 * (C[0, 1] + C[0, 2] + C[1, 2])) / 9
+    G_v = (
+        C[0, 0]
+        + C[1, 1]
+        + C[2, 2]
+        - C[0, 1]
+        - C[0, 2]
+        - C[1, 2]
+        + 3 * (C[3, 3] + C[4, 4] + C[5, 5])
+    ) / 15
     return K_v, G_v
 
 
 def _reuss_averages(C: np.ndarray):
     """Reuss lower-bound bulk and shear moduli (GPa) from 6×6 C (ASE Voigt)."""
     S = np.linalg.inv(C)
-    K_r = 1.0 / (S[0,0]+S[1,1]+S[2,2] + 2*(S[0,1]+S[0,2]+S[1,2]))
-    G_r = 15.0 / (4*(S[0,0]+S[1,1]+S[2,2]) - 4*(S[0,1]+S[0,2]+S[1,2])
-                  + 3*(S[3,3]+S[4,4]+S[5,5]))
+    K_r = 1.0 / (S[0, 0] + S[1, 1] + S[2, 2] + 2 * (S[0, 1] + S[0, 2] + S[1, 2]))
+    G_r = 15.0 / (
+        4 * (S[0, 0] + S[1, 1] + S[2, 2])
+        - 4 * (S[0, 1] + S[0, 2] + S[1, 2])
+        + 3 * (S[3, 3] + S[4, 4] + S[5, 5])
+    )
     return K_r, G_r
 
 
@@ -60,7 +70,9 @@ def run_elastic(atoms, calc, cfg, outcar_path: str = "OUTCAR") -> np.ndarray:
     delta = STRAIN_AMP
     cell0 = np.array(atoms.get_cell())
 
-    print(f"\n[info] Elastic constants: 6 Voigt strains × 2 = 12 calculations (δ={delta})")
+    print(
+        f"\n[info] Elastic constants: 6 Voigt strains × 2 = 12 calculations (δ={delta})"
+    )
 
     C_eVA3 = np.zeros((6, 6))
     k = 0
@@ -75,21 +87,21 @@ def run_elastic(atoms, calc, cfg, outcar_path: str = "OUTCAR") -> np.ndarray:
             a = atoms.copy()
             a.calc = calc
             a.set_cell((np.eye(3) + sign * eps) @ cell0, scale_atoms=True)
-            s = a.get_stress(voigt=True)   # eV/Å³, tensile-positive
+            s = a.get_stress(voigt=True)  # eV/Å³, tensile-positive
             if sign > 0:
                 stress_plus = s
             else:
                 stress_minus = s
         C_eVA3[:, j] = (stress_plus - stress_minus) / (2 * delta)
 
-    C_eVA3 = (C_eVA3 + C_eVA3.T) / 2   # enforce symmetry
-    C_GPa  = C_eVA3 * EV_A3_TO_GPA
+    C_eVA3 = (C_eVA3 + C_eVA3.T) / 2  # enforce symmetry
+    C_GPa = C_eVA3 * EV_A3_TO_GPA
 
     K_v, G_v = _voigt_averages(C_GPa)
     K_r, G_r = _reuss_averages(C_GPa)
     K_h = (K_v + K_r) / 2
     G_h = (G_v + G_r) / 2
-    E_h  = 9 * K_h * G_h / (3 * K_h + G_h)
+    E_h = 9 * K_h * G_h / (3 * K_h + G_h)
     nu_h = (3 * K_h - 2 * G_h) / (6 * K_h + 2 * G_h)
 
     _print_elastic_summary(C_GPa, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h)
@@ -108,24 +120,27 @@ def _print_elastic_summary(C, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h):
     print()
     print(f" Voigt:  K = {K_v:7.2f} GPa   G = {G_v:7.2f} GPa")
     print(f" Reuss:  K = {K_r:7.2f} GPa   G = {G_r:7.2f} GPa")
-    print(f" Hill:   K = {K_h:7.2f} GPa   G = {G_h:7.2f} GPa   "
-          f"E = {E_h:7.2f} GPa   ν = {nu_h:.4f}")
+    print(
+        f" Hill:   K = {K_h:7.2f} GPa   G = {G_h:7.2f} GPa   "
+        f"E = {E_h:7.2f} GPa   ν = {nu_h:.4f}"
+    )
 
 
 def _append_elastic_outcar(outcar_path, C_GPa, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h):
     """Append elastic tensor and polycrystalline moduli to OUTCAR in VASP format."""
     # Reorder C from ASE Voigt to VASP Voigt: [0,1,2,5,3,4]
     p = _TO_VASP
-    C_vasp = C_GPa[np.ix_(p, p)]       # reorder rows and columns
-    C_kbar = C_vasp * 10.0             # GPa → kBar
+    C_vasp = C_GPa[np.ix_(p, p)]  # reorder rows and columns
+    C_kbar = C_vasp * 10.0  # GPa → kBar
 
     sep = " " + "-" * 89
 
     with open(outcar_path, "a") as f:
         f.write("\n")
         f.write(" TOTAL ELASTIC MODULI (kBar)\n")
-        f.write(f" Direction {'':4s}"
-                + "".join(f"{l:>12s}" for l in _VASP_LABELS) + "\n")
+        f.write(
+            f" Direction {'':4s}" + "".join(f"{l:>12s}" for l in _VASP_LABELS) + "\n"
+        )
         f.write(sep + "\n")
         for i, rl in enumerate(_VASP_LABELS):
             row = "".join(f"{C_kbar[i, j]:12.3f}" for j in range(6))

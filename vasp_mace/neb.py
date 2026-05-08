@@ -65,6 +65,7 @@ ASE_OUT_DIR = "ase_files"
 # Input reading
 # -----------------------------------------------------------------------
 
+
 def _read_neb_images(n_images: int) -> tuple[list, bool]:
     """Load endpoint and (optionally) intermediate POSCARs.
 
@@ -112,7 +113,9 @@ def _read_neb_images(n_images: int) -> tuple[list, bool]:
     images = [endpoint_0]
     for i in range(1, n_total - 1):
         if interpolate:
-            images.append(endpoint_0.copy())  # placeholder; overwritten by neb.interpolate()
+            images.append(
+                endpoint_0.copy()
+            )  # placeholder; overwritten by neb.interpolate()
         else:
             images.append(read_poscar(os.path.join(f"{i:02d}", "POSCAR")))
     images.append(endpoint_N)
@@ -132,6 +135,7 @@ def _read_neb_images(n_images: int) -> tuple[list, bool]:
 # -----------------------------------------------------------------------
 # Output writing
 # -----------------------------------------------------------------------
+
 
 def _write_image_outputs(
     img_dir: str,
@@ -185,6 +189,7 @@ def _write_image_outputs(
 # NEB driver
 # -----------------------------------------------------------------------
 
+
 def run_neb(
     cfg: IncarConfig,
     model_path: str,
@@ -220,7 +225,9 @@ def run_neb(
     """
     n_images = cfg.IMAGES
     if n_images < 1:
-        raise ValueError(f"IMAGES={n_images}: NEB requires at least 1 intermediate image.")
+        raise ValueError(
+            f"IMAGES={n_images}: NEB requires at least 1 intermediate image."
+        )
 
     climb = cfg.LCLIMB
     k = abs(cfg.SPRING)
@@ -243,7 +250,9 @@ def run_neb(
     )
     images[0].calc = calc_0
     for i in range(1, n_total):
-        calc_i, _, _ = load_calc(model_path, device=device, dtype=dtype, dispersion=dispersion)
+        calc_i, _, _ = load_calc(
+            model_path, device=device, dtype=dtype, dispersion=dispersion
+        )
         images[i].calc = calc_i
 
     print(
@@ -257,7 +266,7 @@ def run_neb(
     # does not re-evaluate endpoints during the band optimisation, so these
     # cached values remain valid and consistent throughout.
     t0_wall = time.time()
-    t0_cpu  = time.process_time()
+    t0_cpu = time.process_time()
 
     E_start = images[0].get_potential_energy()
     F_start = images[0].get_forces()
@@ -276,7 +285,7 @@ def run_neb(
     # ---- Build NEB and interpolate if needed --------------------------------
     neb = NEB(images, k=k, climb=climb)
     if do_interpolate:
-        neb.interpolate(method='idpp')
+        neb.interpolate(method="idpp")
         print(f"[NEB] Interpolated {n_images} intermediate image(s) using IDPP.")
 
     # Snapshot initial geometries of intermediate images (before optimisation)
@@ -301,7 +310,9 @@ def run_neb(
         opt_name = _ibrion_map.get(cfg.IBRION, "MDMIN")
     else:
         opt_name = (optimizer or "MDMIN").upper()
-    Optim = {"BFGS": BFGS, "FIRE": FIRE, "LBFGS": LBFGS, "MDMIN": MDMin}.get(opt_name, MDMin)
+    Optim = {"BFGS": BFGS, "FIRE": FIRE, "LBFGS": LBFGS, "MDMIN": MDMin}.get(
+        opt_name, MDMin
+    )
 
     # maxstep=0.01 Å (20× smaller than ASE default of 0.2 Å). The default
     # causes catastrophic overshoots near tight NEB transition-state geometries
@@ -336,7 +347,7 @@ def run_neb(
         for j, img_idx in enumerate(range(1, n_total - 1)):
             img = images[img_idx]
             E_i = img.get_potential_energy()  # cached; no extra evaluation
-            F_i = img.get_forces()            # cached; no extra evaluation
+            F_i = img.get_forces()  # cached; no extra evaluation
             image_loggers[j].log(n=n, energy=E_i, forces=F_i, atoms=img)
             energies_inter.append(E_i)
 
@@ -361,8 +372,8 @@ def run_neb(
         traj.write(img)
     traj.close()
 
-    elapsed = time.time()        - t0_wall
-    cpu_t   = time.process_time() - t0_cpu
+    elapsed = time.time() - t0_wall
+    cpu_t = time.process_time() - t0_cpu
 
     # ---- Write per-image VASP output files ----------------------------------
     _write_image_outputs(

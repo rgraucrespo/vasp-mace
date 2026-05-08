@@ -47,6 +47,10 @@ include = ["vasp_mace*"]
 [tool.setuptools]
 include-package-data = true
 
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311", "py312"]
+
 [project.optional-dependencies]
 phonons = [
   "phonopy>=2.20",

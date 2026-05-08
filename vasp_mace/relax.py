@@ -25,6 +25,7 @@ try:
     from ase.filters import UnitCellFilter, ExpCellFilter
 except Exception:  # pragma: no cover
     from ase.constraints import UnitCellFilter  # very old ASE
+
     try:
         from ase.filters import ExpCellFilter
     except Exception:
@@ -63,11 +64,11 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
 
     # Map EDIFFG to stopping criteria
     if cfg.EDIFFG < 0:
-        f_tol = abs(cfg.EDIFFG)   # eV/Å
+        f_tol = abs(cfg.EDIFFG)  # eV/Å
         ediff_tol = None
     else:
-        f_tol = 0.05              # eV/Å (gentle cap; energy drives convergence)
-        ediff_tol = cfg.EDIFFG    # eV per ion
+        f_tol = 0.05  # eV/Å (gentle cap; energy drives convergence)
+        ediff_tol = cfg.EDIFFG  # eV per ion
 
     # Target object based on ISIF
     if cfg.ISIF == 2:
@@ -119,7 +120,9 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
     if not cell_relaxing:
         write_xdatcar_header("XDATCAR", atoms)
     else:
-        open("XDATCAR", "w").close()   # create/truncate; frames will self-contain headers
+        open(
+            "XDATCAR", "w"
+        ).close()  # create/truncate; frames will self-contain headers
 
     converged = False
     for n in range(1, cfg.NSW + 1):
@@ -139,10 +142,14 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
 
         # Stress acquisition + PSTRESS target construction
         try:
-            stress = atoms.get_stress(voigt=True)  # (6,) eV/Å^3  [xx, yy, zz, yz, xz, xy]
+            stress = atoms.get_stress(
+                voigt=True
+            )  # (6,) eV/Å^3  [xx, yy, zz, yz, xz, xy]
             if abs(pressure_GPa) > 1e-9:
                 p_eva3 = pressure_GPa * GPa
-                target_voigt = np.array([-p_eva3, -p_eva3, -p_eva3, 0.0, 0.0, 0.0], dtype=float)
+                target_voigt = np.array(
+                    [-p_eva3, -p_eva3, -p_eva3, 0.0, 0.0, 0.0], dtype=float
+                )
                 stress_err = np.asarray(stress, dtype=float) - target_voigt
                 max_err = float(np.max(np.abs(stress_err)))
                 stress_str = f"max|σ-pI|={max_err*EV_A3_TO_KBAR:.3f} kBar"
@@ -155,7 +162,9 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
                 f"Fmax={fmax_opt:.3f} eV/Å | {stress_str}"
             )
         except Exception:
-            print(f"[step {n}] E={rec.energy:.6f} eV | dE={rec.dE:.6e} eV | Fmax={fmax_opt:.3f} eV/Å")
+            print(
+                f"[step {n}] E={rec.energy:.6f} eV | dE={rec.dE:.6e} eV | Fmax={fmax_opt:.3f} eV/Å"
+            )
 
         traj.write()
         append_xdatcar_frame("XDATCAR", atoms, n, update_header=cell_relaxing)

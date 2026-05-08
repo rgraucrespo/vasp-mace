@@ -1,8 +1,14 @@
 import os, sys, warnings, logging, time
+
 os.environ.pop("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", None)
-warnings.filterwarnings("ignore", message=r"Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected.*")
+warnings.filterwarnings(
+    "ignore",
+    message=r"Environment variable TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD detected.*",
+)
 warnings.filterwarnings("ignore", category=UserWarning, module=r"e3nn\.o3\._wigner")
-warnings.filterwarnings("ignore", category=UserWarning, module=r"mace\.calculators\.mace")
+warnings.filterwarnings(
+    "ignore", category=UserWarning, module=r"mace\.calculators\.mace"
+)
 for name in ("cuequivariance", "cuequivariance_torch", "e3nn", "mace"):
     logging.getLogger(name).setLevel(logging.ERROR)
 
@@ -39,8 +45,11 @@ def _run():
         "MACE_MODEL_PATH",
         os.path.expanduser("~/software/mace/2024-01-07-mace-128-L2_epoch-199.model"),
     )
-    ap.add_argument("--model", default=DEFAULT_MODEL,
-                    help=f"Path to MACE .model checkpoint (default: {DEFAULT_MODEL} or $MACE_MODEL_PATH)")
+    ap.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"Path to MACE .model checkpoint (default: {DEFAULT_MODEL} or $MACE_MODEL_PATH)",
+    )
     ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda", "mps"])
     ap.add_argument("--dtype", default="auto", choices=["auto", "float32", "float64"])
     ap.add_argument("--optimizer", default="BFGS", choices=["BFGS", "FIRE", "LBFGS"])
@@ -53,11 +62,14 @@ def _run():
     # images live in 00/, 01/, … subdirectories.
     if cfg.IMAGES > 0:
         from .neb import run_neb
+
         dispersion = cfg.IVDW > 0
         n_total = cfg.IMAGES + 2
         image_steps, converged = run_neb(
-            cfg, args.model,
-            device=args.device, dtype=args.dtype,
+            cfg,
+            args.model,
+            device=args.device,
+            dtype=args.dtype,
             dispersion=dispersion,
             optimizer=args.optimizer,
         )
@@ -74,15 +86,18 @@ def _run():
 
     # Load calculator; IVDW > 0 enables empirical dispersion (DFT-D3)
     dispersion = cfg.IVDW > 0
-    calc, device, dtype = load_calc(args.model, device=args.device, dtype=args.dtype,
-                                    dispersion=dispersion)
+    calc, device, dtype = load_calc(
+        args.model, device=args.device, dtype=args.dtype, dispersion=dispersion
+    )
     atoms.calc = calc
 
     # --- IBRION=5/6: phonon finite differences ---
     if cfg.IBRION in (5, 6):
         if "POTIM" not in cfg.raw:
             cfg.POTIM = 0.015
-            print(f"[info] POTIM not set; using VASP default 0.015 Å for phonon displacement.")
+            print(
+                f"[info] POTIM not set; using VASP default 0.015 Å for phonon displacement."
+            )
         print(
             f"[info] Model={args.model}, device={device}, dtype={dtype}, "
             f"IBRION={cfg.IBRION}, NFREE={cfg.NFREE}, POTIM={cfg.POTIM} Å"
@@ -97,11 +112,12 @@ def _run():
                 f"material response at that compressed/expanded volume."
             )
         t0_wall = time.time()
-        t0_cpu  = time.process_time()
+        t0_cpu = time.process_time()
         from .phonons import run_phonons
+
         run_phonons(atoms, calc, cfg)
-        elapsed = time.time()         - t0_wall
-        cpu_t   = time.process_time() - t0_cpu
+        elapsed = time.time() - t0_wall
+        cpu_t = time.process_time() - t0_cpu
         write_outcar_tail("OUTCAR", elapsed, cpu_t)
         return
 
@@ -122,19 +138,21 @@ def _run():
             f"POTIM={cfg.POTIM} fs, NBLOCK={cfg.NBLOCK}{extra_info}"
         )
         t0_wall = time.time()
-        t0_cpu  = time.process_time()
+        t0_cpu = time.process_time()
         records = run_md(atoms, calc, cfg)
-        elapsed = time.time()         - t0_wall
-        cpu_t   = time.process_time() - t0_cpu
+        elapsed = time.time() - t0_wall
+        cpu_t = time.process_time() - t0_cpu
         write_contcar("CONTCAR", atoms)
         write_outcar_tail("OUTCAR", elapsed, cpu_t)
-        print(f"[done] MD complete ({len(records)} steps). Wrote XDATCAR, CONTCAR, OUTCAR.")
+        print(
+            f"[done] MD complete ({len(records)} steps). Wrote XDATCAR, CONTCAR, OUTCAR."
+        )
         return
 
     # --- NSW=0: single-point ---
     if cfg.NSW <= 0:
         t0_wall = time.time()
-        t0_cpu  = time.process_time()
+        t0_cpu = time.process_time()
 
         energy = atoms.get_potential_energy()
         forces = atoms.get_forces()
@@ -147,23 +165,39 @@ def _run():
         except Exception:
             pass
 
-        elapsed = time.time()         - t0_wall
-        cpu_t   = time.process_time() - t0_cpu
+        elapsed = time.time() - t0_wall
+        cpu_t = time.process_time() - t0_cpu
 
-        write_single_vasprun_xml("vasprun.xml", atoms, forces=f, stress=stress, energy=energy,
-                                 incar_raw=cfg.raw)
+        write_single_vasprun_xml(
+            "vasprun.xml",
+            atoms,
+            forces=f,
+            stress=stress,
+            energy=energy,
+            incar_raw=cfg.raw,
+        )
         write_contcar("CONTCAR", atoms)
 
         sv = np.array(stress) if stress is not None else None
         one = StepRecord(
-            n=1, energy=float(energy), dE=float(energy), fmax=fmax,
+            n=1,
+            energy=float(energy),
+            dE=float(energy),
+            fmax=fmax,
             positions=atoms.get_positions().copy(),
             forces=f.copy(),
             stress=sv,
             cell=np.array(atoms.get_cell()).copy(),
         )
-        write_outcar("OUTCAR", atoms, [one], incar_raw=cfg.raw,
-                     converged=True, elapsed=elapsed, cpu_time=cpu_t)
+        write_outcar(
+            "OUTCAR",
+            atoms,
+            [one],
+            incar_raw=cfg.raw,
+            converged=True,
+            elapsed=elapsed,
+            cpu_time=cpu_t,
+        )
         write_oszicar("OSZICAR", [one])
 
         stress_str = ""
@@ -171,7 +205,9 @@ def _run():
             max_sig = float(np.max(np.abs(stress)))
             stress_str = f", max|σ|={max_sig*EV_A3_TO_KBAR:.3f} kBar"
 
-        print(f"[done] Single-point written (NSW=0): E={energy:.6f} eV, Fmax={fmax:.3f} eV/Å{stress_str}")
+        print(
+            f"[done] Single-point written (NSW=0): E={energy:.6f} eV, Fmax={fmax:.3f} eV/Å{stress_str}"
+        )
         return
 
     # --- NSW > 0: relaxation ---
@@ -183,22 +219,34 @@ def _run():
         f"IVDW={cfg.IVDW}"
     )
 
-    atoms_initial = atoms.copy()  # snapshot before relaxation for vasprun.xml initialpos
+    atoms_initial = (
+        atoms.copy()
+    )  # snapshot before relaxation for vasprun.xml initialpos
 
     t0_wall = time.time()
-    t0_cpu  = time.process_time()
+    t0_cpu = time.process_time()
 
-    steps, converged = run_relax(atoms, calc, cfg, optimizer=args.optimizer,
-                                 pressure_GPa=pressure_GPa)
+    steps, converged = run_relax(
+        atoms, calc, cfg, optimizer=args.optimizer, pressure_GPa=pressure_GPa
+    )
 
-    elapsed = time.time()         - t0_wall
-    cpu_t   = time.process_time() - t0_cpu
+    elapsed = time.time() - t0_wall
+    cpu_t = time.process_time() - t0_cpu
 
-    write_outcar("OUTCAR", atoms, steps, incar_raw=cfg.raw,
-                 converged=converged, elapsed=elapsed, cpu_time=cpu_t)
+    write_outcar(
+        "OUTCAR",
+        atoms,
+        steps,
+        incar_raw=cfg.raw,
+        converged=converged,
+        elapsed=elapsed,
+        cpu_time=cpu_t,
+    )
     write_oszicar("OSZICAR", steps)
     write_contcar("CONTCAR", atoms)
-    write_relax_vasprun_xml("vasprun.xml", atoms_initial, atoms, steps, incar_raw=cfg.raw)
+    write_relax_vasprun_xml(
+        "vasprun.xml", atoms_initial, atoms, steps, incar_raw=cfg.raw
+    )
 
     print("[done] Wrote OSZICAR, OUTCAR, CONTCAR, vasprun.xml")
     if not converged:
