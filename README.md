@@ -197,6 +197,21 @@ The elastic tensor, together with Voigt, Reuss, and Hill polycrystalline average
 
 A human-readable summary is also printed to stdout (GPa, ASE Voigt ordering xx yy zz yz xz xy).
 
+The polycrystalline averages follow the Voigt–Reuss–Hill scheme ([de Jong et al., *Scientific Data* 2015](https://doi.org/10.1038/sdata.2015.9), Table 2), where **S** = **C**⁻¹ is the Voigt compliance tensor:
+
+| Quantity | Formula |
+|----------|---------|
+| Voigt bulk modulus | K_V = (C₁₁+C₂₂+C₃₃ + 2(C₁₂+C₁₃+C₂₃)) / 9 |
+| Reuss bulk modulus | K_R = 1 / (S₁₁+S₂₂+S₃₃ + 2(S₁₂+S₁₃+S₂₃)) |
+| Voigt shear modulus | G_V = (C₁₁+C₂₂+C₃₃ − C₁₂−C₁₃−C₂₃ + 3(C₄₄+C₅₅+C₆₆)) / 15 |
+| Reuss shear modulus | G_R = 15 / (4(S₁₁+S₂₂+S₃₃) − 4(S₁₂+S₁₃+S₂₃) + 3(S₄₄+S₅₅+S₆₆)) |
+| Hill bulk modulus | K_VRH = (K_V + K_R) / 2 |
+| Hill shear modulus | G_VRH = (G_V + G_R) / 2 |
+| Young's modulus | E = 9 K_VRH G_VRH / (3 K_VRH + G_VRH) |
+| Poisson's ratio | ν = (3 K_VRH − 2 G_VRH) / (6 K_VRH + 2 G_VRH) |
+
+These expressions are valid for all crystal systems (cubic to triclinic).
+
 > **Internal strain tensor**: not computed (vasp-mace computes the macroscopic elastic tensor only).
 
 ### Molecular dynamics (IBRION = 0)
