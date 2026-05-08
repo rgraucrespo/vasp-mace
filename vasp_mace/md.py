@@ -284,7 +284,8 @@ def run_md(atoms, calc, cfg):
     if not cell_relaxing:
         write_xdatcar_header("XDATCAR", atoms)
     else:
-        open("XDATCAR", "w").close()
+        with open("XDATCAR", "w"):
+            pass
 
     write_md_outcar_header("OUTCAR", atoms, getattr(cfg, "raw", {}))
 

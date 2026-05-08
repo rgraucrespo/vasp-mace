@@ -1,4 +1,6 @@
 import datetime
+import os
+import tempfile
 from typing import List, Optional
 import xml.etree.ElementTree as ET
 import numpy as np
@@ -142,18 +144,31 @@ def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True):
 
 
 def write_contcar(path: str, atoms):
+    """Write a VASP-style CONTCAR, preserving Selective Dynamics flags if present.
+
+    Writes to a temp file first and renames atomically so a failed write
+    never leaves a truncated or corrupt file at *path*.
     """
-    Write a VASP-style CONTCAR, preserving Selective Dynamics flags if present.
-    """
-    write(
-        path,
-        atoms,
-        format="vasp",
-        direct=True,
-        vasp5=True,
-        sort=False,
-        ignore_constraints=False,
-    )
+    dir_ = os.path.dirname(os.path.abspath(path))
+    fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
+    try:
+        os.close(fd)
+        write(
+            tmp,
+            atoms,
+            format="vasp",
+            direct=True,
+            vasp5=True,
+            sort=False,
+            ignore_constraints=False,
+        )
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 # -----------------------------------------------------------------------

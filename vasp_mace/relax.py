@@ -120,9 +120,8 @@ def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0
     if not cell_relaxing:
         write_xdatcar_header("XDATCAR", atoms)
     else:
-        open(
-            "XDATCAR", "w"
-        ).close()  # create/truncate; frames will self-contain headers
+        with open("XDATCAR", "w"):
+            pass  # create/truncate; frames will self-contain headers
 
     converged = False
     for n in range(1, cfg.NSW + 1):
