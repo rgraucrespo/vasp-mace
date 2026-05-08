@@ -121,9 +121,14 @@ def _run():
             f"MDALGO={cfg.MDALGO}, NSW={cfg.NSW}, TEBEG={cfg.TEBEG} K, "
             f"POTIM={cfg.POTIM} fs, NBLOCK={cfg.NBLOCK}{extra_info}"
         )
+        t0_wall = time.time()
+        t0_cpu  = time.process_time()
         records = run_md(atoms, calc, cfg)
+        elapsed = time.time()         - t0_wall
+        cpu_t   = time.process_time() - t0_cpu
         write_contcar("CONTCAR", atoms)
-        print(f"[done] MD complete ({len(records)} steps). Wrote XDATCAR, CONTCAR.")
+        write_outcar_tail("OUTCAR", elapsed, cpu_t)
+        print(f"[done] MD complete ({len(records)} steps). Wrote XDATCAR, CONTCAR, OUTCAR.")
         return
 
     # --- NSW=0: single-point ---

@@ -104,7 +104,8 @@ class LangevinNPT(MolecularDynamics):
         return f
 
 from .types_ import MDRecord
-from .io_vasp import write_xdatcar_header, append_xdatcar_frame
+from .io_vasp import (write_xdatcar_header, append_xdatcar_frame,
+                      write_md_outcar_header, append_md_outcar_step)
 
 
 def _per_atom_friction(atoms, langevin_gamma: np.ndarray) -> np.ndarray:
@@ -249,6 +250,8 @@ def run_md(atoms, calc, cfg):
     else:
         open("XDATCAR", "w").close()
 
+    write_md_outcar_header("OUTCAR", atoms, getattr(cfg, "raw", {}))
+
     # Open trajectory file; write at each recorded step
     traj = Trajectory(traj_path, "w", atoms)
 
@@ -274,6 +277,7 @@ def run_md(atoms, calc, cfg):
 
         rec = MDRecord(n=step, energy_pot=E_pot, energy_kin=E_kin, temperature=T_inst)
         records.append(rec)
+        append_md_outcar_step("OUTCAR", atoms, step, E_pot, E_kin, T_inst)
 
         # Stress/Pressure info for stdout if ISIF=3
         stress_info = ""

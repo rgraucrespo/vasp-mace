@@ -152,6 +152,112 @@ def write_contcar(path: str, atoms):
 
 
 # -----------------------------------------------------------------------
+# OUTCAR — MD (incremental writers)
+# -----------------------------------------------------------------------
+
+def write_md_outcar_header(path: str, atoms, incar_raw: Optional[dict] = None) -> None:
+    """Write the OUTCAR header for an MD run (called once before the loop)."""
+    symbols = atoms.get_chemical_symbols()
+    nions = len(atoms)
+    seen = {}
+    counts = []
+    for sym in symbols:
+        if sym not in seen:
+            seen[sym] = len(seen)
+            counts.append(0)
+        counts[seen[sym]] += 1
+
+    with open(path, "w") as f:
+        f.write(" vasp-mace (MACE/ASE interface) -- VASP-compatible OUTCAR\n")
+        f.write(f" NIONS =   {nions}\n\n")
+        if incar_raw:
+            f.write(" INCAR:\n")
+            for k, v in incar_raw.items():
+                f.write(f"   {k} = {v}\n")
+            f.write("\n")
+        f.write(" ions per type =  " + "  ".join(str(c) for c in counts) + "\n")
+        f.write(" POMASS = " + "  ".join(
+            f"{atoms.get_masses()[symbols.index(sp)]:.3f}" for sp in seen) + "\n\n")
+        f.write(" " + "-" * 102 + "\n\n")
+
+
+def append_md_outcar_step(path: str, atoms, n: int,
+                           energy_pot: float, energy_kin: float,
+                           temperature: float) -> None:
+    """Append one MD ionic-step block to OUTCAR (called every step)."""
+    cell = np.array(atoms.get_cell())
+    pos  = atoms.get_positions()
+    vol  = float(np.linalg.det(cell))
+    rec_b = _rec_basis(cell)
+    lens_d = np.linalg.norm(cell, axis=1)
+    lens_r = np.linalg.norm(rec_b, axis=1)
+
+    try:
+        frc = atoms.get_forces()
+    except Exception:
+        frc = np.zeros_like(pos)
+
+    try:
+        sv = atoms.get_stress(voigt=True)
+    except Exception:
+        sv = None
+
+    with open(path, "a") as f:
+        f.write(f"\n --------------------------------------- "
+                f"Iteration{n:6d}(   1)  "
+                f"---------------------------------------\n\n")
+
+        if sv is not None:
+            XX, YY, ZZ, XY, YZ, ZX = _stress_kB(sv)
+            tXX, tYY, tZZ = -sv[0]*vol, -sv[1]*vol, -sv[2]*vol
+            tXY, tYZ, tZX = -sv[5]*vol, -sv[3]*vol, -sv[4]*vol
+            ext_p = (XX + YY + ZZ) / 3.0
+            f.write("  FORCE on cell =-STRESS in cart. coord.  units (eV):\n")
+            f.write("  Direction    XX          YY          ZZ"
+                    "          XY          YZ          ZX\n")
+            f.write("  " + "-" * 86 + "\n")
+            f.write(f"  Total   {tXX:11.5f} {tYY:11.5f} {tZZ:11.5f}"
+                    f" {tXY:11.5f} {tYZ:11.5f} {tZX:11.5f}\n")
+            f.write(f"  in kB   {XX:11.5f} {YY:11.5f} {ZZ:11.5f}"
+                    f" {XY:11.5f} {YZ:11.5f} {ZX:11.5f}\n")
+            f.write(f"  external pressure ={ext_p:12.2f} kB"
+                    f"  Pullay stress =        0.00 kB\n\n")
+
+        f.write(" VOLUME and BASIS-vectors are now :\n")
+        f.write(" " + "-" * 77 + "\n")
+        f.write(f"  volume of cell :{vol:12.2f}\n")
+        f.write("      direct lattice vectors"
+                "                 reciprocal lattice vectors\n")
+        for i in range(3):
+            f.write(f"  {cell[i,0]:12.9f} {cell[i,1]:12.9f} {cell[i,2]:12.9f}"
+                    f"   {rec_b[i,0]:12.9f} {rec_b[i,1]:12.9f} {rec_b[i,2]:12.9f}\n")
+        f.write("\n  length of vectors\n")
+        f.write(f"  {lens_d[0]:12.9f} {lens_d[1]:12.9f} {lens_d[2]:12.9f}"
+                f"   {lens_r[0]:12.9f} {lens_r[1]:12.9f} {lens_r[2]:12.9f}\n\n")
+
+        f.write(" POSITION                                       TOTAL-FORCE (eV/Angst)\n")
+        f.write(" " + "-" * 83 + "\n")
+        for p, fv in zip(pos, frc):
+            f.write(f" {p[0]:12.5f} {p[1]:12.5f} {p[2]:12.5f}"
+                    f"    {fv[0]:13.6f} {fv[1]:13.6f} {fv[2]:13.6f}\n")
+        f.write(" " + "-" * 83 + "\n")
+        drift = np.sum(frc, axis=0)
+        f.write(f"    total drift:                               "
+                f"{drift[0]:13.6f} {drift[1]:13.6f} {drift[2]:13.6f}\n\n")
+
+        e_tot = energy_pot + energy_kin
+        f.write("\n  FREE ENERGIE OF THE ION-ELECTRON SYSTEM (eV)\n")
+        f.write("  ---------------------------------------------------\n")
+        f.write(f"  free  energy   TOTEN  =     {energy_pot:20.8f} eV\n\n")
+        f.write(f"  energy  without entropy=    {energy_pot:20.8f}"
+                f"  energy(sigma->0) =    {energy_pot:20.8f}\n\n")
+        f.write(f"  kinetic Energy EKIN   =     {energy_kin:20.8f} eV\n")
+        f.write(f"  total energy   ETOTAL =     {e_tot:20.8f} eV"
+                f"  temperature  {temperature:10.2f} K\n\n")
+        f.write(" " + "-" * 102 + "\n")
+
+
+# -----------------------------------------------------------------------
 # OSZICAR
 # -----------------------------------------------------------------------
 
