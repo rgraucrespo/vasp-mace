@@ -297,7 +297,14 @@ def write_outcar(
             f.write("\n maximum ionic steps (NSW) exceeded\n")
 
         # ---- Timing ----
-        cpu = cpu_time if cpu_time is not None else elapsed
+        write_outcar_tail(path, elapsed, cpu_time, mode="a")
+
+
+def write_outcar_tail(path: str, elapsed: float, cpu_time: float = None,
+                      mode: str = "a") -> None:
+    """Append (or write) the VASP-style timing footer to an OUTCAR file."""
+    cpu = cpu_time if cpu_time is not None else elapsed
+    with open(path, mode) as f:
         f.write("\n\n General timing and accounting informations for this job:\n")
         f.write(" ========================================================\n\n")
         f.write(f"                  Total CPU time used (sec):{cpu:13.3f}\n")

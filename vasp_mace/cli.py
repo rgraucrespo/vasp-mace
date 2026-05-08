@@ -14,6 +14,7 @@ from .io_vasp import (
     write_oszicar,
     write_outcar,
     write_outcar_like,
+    write_outcar_tail,
     write_contcar,
     write_relax_vasprun_xml,
     write_single_vasprun_xml,
@@ -95,8 +96,13 @@ def _run():
                 f"corresponding internal stress, and the elastic constants will reflect the "
                 f"material response at that compressed/expanded volume."
             )
+        t0_wall = time.time()
+        t0_cpu  = time.process_time()
         from .phonons import run_phonons
         run_phonons(atoms, calc, cfg)
+        elapsed = time.time()         - t0_wall
+        cpu_t   = time.process_time() - t0_cpu
+        write_outcar_tail("OUTCAR", elapsed, cpu_t)
         return
 
     # --- IBRION=0: MD mode ---
