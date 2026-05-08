@@ -16,8 +16,10 @@ Outputs:
 from __future__ import annotations
 
 import os
+from typing import Any, List, Optional
 
 import numpy as np
+from ase import Atoms
 from ase.md.md import MolecularDynamics
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.md.verlet import VelocityVerlet
@@ -43,17 +45,17 @@ class LangevinNPT(MolecularDynamics):
 
     def __init__(
         self,
-        atoms,
-        timestep,
-        temperature_K,
-        externalstress,
-        friction,
-        barostat_friction,
-        piston_mass,
-        logfile=None,
-        trajectory=None,
-        loginterval=1,
-    ):
+        atoms: Atoms,
+        timestep: float,
+        temperature_K: float,
+        externalstress: float,
+        friction: np.ndarray,
+        barostat_friction: float,
+        piston_mass: float,
+        logfile: Optional[str] = None,
+        trajectory: Optional[Any] = None,
+        loginterval: int = 1,
+    ) -> None:
         MolecularDynamics.__init__(
             self, atoms, timestep, trajectory, logfile, loginterval
         )
@@ -68,7 +70,20 @@ class LangevinNPT(MolecularDynamics):
         self.v_eps = 0.0  # strain rate
         self.rng = np.random.default_rng()
 
-    def step(self, forces=None):
+    def step(self, forces: Optional[np.ndarray] = None) -> np.ndarray:
+        """Advance the NPT trajectory by one integration step.
+
+        Parameters
+        ----------
+        forces
+            Optional precomputed force array in eV/Å. If omitted, forces are
+            evaluated from the attached calculator.
+
+        Returns
+        -------
+        numpy.ndarray
+            Force array evaluated at the post-position-update geometry.
+        """
         atoms = self.atoms
         dt = self.dt
         N = len(atoms)
@@ -131,7 +146,7 @@ class LangevinNPT(MolecularDynamics):
         return f
 
 
-from .types_ import MDRecord
+from .types_ import IncarConfig, MDRecord
 from .io_vasp import (
     write_xdatcar_header,
     append_xdatcar_frame,
@@ -140,7 +155,7 @@ from .io_vasp import (
 )
 
 
-def _per_atom_friction(atoms, langevin_gamma: np.ndarray) -> np.ndarray:
+def _per_atom_friction(atoms: Atoms, langevin_gamma: np.ndarray) -> np.ndarray:
     """Return per-atom friction (ps⁻¹, shape (N,)) from LANGEVIN_GAMMA.
 
     If langevin_gamma has one value, it is broadcast to all atoms.
@@ -171,21 +186,30 @@ def _per_atom_friction(atoms, langevin_gamma: np.ndarray) -> np.ndarray:
 ASE_OUT_DIR = "ase_files"
 
 
-def run_md(atoms, calc, cfg):
+def run_md(atoms: Atoms, calc: Any, cfg: IncarConfig) -> List[MDRecord]:
     """Run NVE, NVT, or NPT molecular dynamics.
 
     Parameters
     ----------
-    atoms : ase.Atoms
-    calc  : ASE calculator (already attached to atoms by caller)
-    cfg   : IncarConfig with IBRION=0 and MD-related fields
-            MDALGO=1 → NVE (VelocityVerlet) or NVT Andersen (ANDERSEN_PROB > 0)
-            MDALGO=2 → NVT Nosé-Hoover
-            MDALGO=3, ISIF=2 → NVT Langevin; ISIF=3 → NPT Langevin
+    atoms
+        Structure to propagate. The object is modified in place.
+    calc
+        ASE-compatible calculator attached to ``atoms``.
+    cfg
+        Parsed INCAR configuration with ``IBRION=0`` and MD-related fields.
+        ``MDALGO=1`` selects NVE or Andersen NVT, ``MDALGO=2`` selects
+        Nosé-Hoover NVT, and ``MDALGO=3`` selects Langevin NVT or Langevin NPT
+        when ``ISIF=3``.
 
     Returns
     -------
-    list[MDRecord]
+    list of MDRecord
+        One summary record per MD step.
+
+    Raises
+    ------
+    ValueError
+        If ``cfg.MDALGO`` is not supported.
     """
     atoms.calc = calc
     N = len(atoms)

@@ -1,8 +1,9 @@
 """Write OSZICAR, OUTCAR (relaxation, single-point, MD) files."""
 
-from typing import List, Optional
+from typing import Any, List, Optional, Sequence
 
 import numpy as np
+from ase import Atoms
 
 from .logging_utils import StepRecord
 
@@ -46,12 +47,19 @@ def _rec_basis(cell):
 
 
 def write_oszicar(path: str, steps: List[StepRecord]) -> None:
-    """VASP-style OSZICAR: one ionic-step line per step.
+    """Write a VASP-style OSZICAR file.
 
-    Format (per real VASP):
-        N F= -.XXXXXXXE+XX E0= -.XXXXXXXE+XX  d E =-.XXXXXXE+XX
-    F = free energy (= E0 for MACE, no entropy).
-    d E for step 1 is the energy itself (VASP convention).
+    Parameters
+    ----------
+    path
+        Destination OSZICAR path.
+    steps
+        Ionic-step records to serialize.
+
+    Notes
+    -----
+    The format mirrors VASP's ionic summary line. ``F`` and ``E0`` are both the
+    MACE potential energy because there is no electronic entropy term.
     """
     with open(path, "w") as f:
         for s in steps:
@@ -182,17 +190,32 @@ def _write_outcar_header(f, atoms, incar_raw):
 
 def write_outcar(
     path: str,
-    atoms,
+    atoms: Atoms,
     steps: List[StepRecord],
-    incar_raw: Optional[dict] = None,
+    incar_raw: Optional[dict[str, str]] = None,
     converged: bool = True,
     elapsed: float = 0.0,
     cpu_time: Optional[float] = None,
 ) -> None:
-    """Write a VASP-style OUTCAR for a relaxation or single-point run.
+    """Write a VASP-style OUTCAR for relaxation or single-point output.
 
-    Each ionic step gets a full block: stress, cell, positions/forces, energy.
-    Timing info is appended at the end.
+    Parameters
+    ----------
+    path
+        Destination OUTCAR path.
+    atoms
+        Final structure used for header metadata and any missing step fields.
+    steps
+        Per-step records containing energies, forces, stress, positions, and
+        cell snapshots.
+    incar_raw
+        Raw INCAR key/value mapping to echo into the OUTCAR header.
+    converged
+        Whether to write a convergence message or an ``NSW`` exceeded message.
+    elapsed
+        Wall-clock time in seconds.
+    cpu_time
+        CPU time in seconds. If omitted, ``elapsed`` is reused.
     """
     with open(path, "w") as f:
         _write_outcar_header(f, atoms, incar_raw)
@@ -210,9 +233,22 @@ def write_outcar(
 
 
 def write_outcar_tail(
-    path: str, elapsed: float, cpu_time: float = None, mode: str = "a"
+    path: str, elapsed: float, cpu_time: Optional[float] = None, mode: str = "a"
 ) -> None:
-    """Append (or write) the VASP-style timing footer to an OUTCAR file."""
+    """Write the VASP-style timing footer for an OUTCAR file.
+
+    Parameters
+    ----------
+    path
+        OUTCAR path to write or append to.
+    elapsed
+        Wall-clock time in seconds.
+    cpu_time
+        CPU time in seconds. If omitted, ``elapsed`` is used.
+    mode
+        File mode, usually ``"a"`` to append or ``"w"`` to create a footer-only
+        file.
+    """
     cpu = cpu_time if cpu_time is not None else elapsed
     with open(path, mode) as f:
         f.write("\n\n General timing and accounting informations for this job:\n")
@@ -224,17 +260,44 @@ def write_outcar_tail(
 
 
 def write_outcar_like(
-    path,
-    atoms,
-    steps,
-    stress=None,
-    incar_raw=None,
-    converged=True,
-    elapsed=0.0,
-    cpu_time=None,
-):
-    """Thin wrapper kept for backward compatibility; delegates to write_outcar."""
-    upgraded = []
+    path: str,
+    atoms: Atoms,
+    steps: Sequence[Any],
+    stress: Optional[np.ndarray] = None,
+    incar_raw: Optional[dict[str, str]] = None,
+    converged: bool = True,
+    elapsed: float = 0.0,
+    cpu_time: Optional[float] = None,
+) -> None:
+    """Write an OUTCAR from older step-like objects.
+
+    Parameters
+    ----------
+    path
+        Destination OUTCAR path.
+    atoms
+        Structure used to fill positions, forces, and cell data when ``steps``
+        are not already ``StepRecord`` instances.
+    steps
+        Sequence of ``StepRecord`` instances or legacy objects with ``n``,
+        ``energy``, ``dE``, and ``fmax`` attributes.
+    stress
+        Optional stress vector in ASE Voigt order used for legacy step objects.
+    incar_raw
+        Raw INCAR key/value mapping to echo into the OUTCAR header.
+    converged
+        Whether to write a convergence message.
+    elapsed
+        Wall-clock time in seconds.
+    cpu_time
+        CPU time in seconds. If omitted, ``elapsed`` is reused.
+
+    Notes
+    -----
+    This wrapper is retained for backward compatibility. New code should call
+    :func:`write_outcar` directly with ``StepRecord`` instances.
+    """
+    upgraded: List[StepRecord] = []
     for s in steps:
         if isinstance(s, StepRecord):
             upgraded.append(s)
@@ -272,21 +335,49 @@ def write_outcar_like(
 # ---------------------------------------------------------------------------
 
 
-def write_md_outcar_header(path: str, atoms, incar_raw: Optional[dict] = None) -> None:
-    """Write the OUTCAR header for an MD run (called once before the loop)."""
+def write_md_outcar_header(
+    path: str, atoms: Atoms, incar_raw: Optional[dict[str, str]] = None
+) -> None:
+    """Write the header for an MD OUTCAR.
+
+    Parameters
+    ----------
+    path
+        Destination OUTCAR path.
+    atoms
+        Initial MD structure.
+    incar_raw
+        Raw INCAR key/value mapping to echo into the header.
+    """
     with open(path, "w") as f:
         _write_outcar_header(f, atoms, incar_raw)
 
 
 def append_md_outcar_step(
     path: str,
-    atoms,
+    atoms: Atoms,
     n: int,
     energy_pot: float,
     energy_kin: float,
     temperature: float,
 ) -> None:
-    """Append one MD ionic-step block to OUTCAR (called every step)."""
+    """Append one MD ionic-step block to OUTCAR.
+
+    Parameters
+    ----------
+    path
+        OUTCAR path to append to.
+    atoms
+        Current MD structure.
+    n
+        One-based MD step index.
+    energy_pot
+        Potential energy in eV.
+    energy_kin
+        Kinetic energy in eV.
+    temperature
+        Instantaneous temperature in K.
+    """
     cell = np.array(atoms.get_cell())
     pos = atoms.get_positions()
     vol = float(np.linalg.det(cell))

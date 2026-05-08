@@ -7,6 +7,20 @@ It reads VASP-style inputs (`POSCAR`, `INCAR`) and produces VASP-compatible outp
 
 ---
 
+## Trademark and project notice
+
+`vasp-mace` is an independent open-source project and is not affiliated with,
+endorsed by, or sponsored by VASP Software GmbH. VASP is a trademark of VASP
+Software GmbH. This project does not include, call, wrap, modify, or distribute
+VASP, VASP source code, POTCAR files, PAW datasets, or any licensed VASP
+components. It implements independent surrogate-model calculations and
+reads/writes selected VASP-style input/output files solely for workflow
+interoperability.
+
+See [NOTICE.md](NOTICE.md) for the repository-level notice.
+
+---
+
 ## Features
 
 - **Single-point** energy, force, and stress evaluation (`NSW = 0`)
@@ -581,6 +595,31 @@ ruff check vasp_mace/     # lint
 black vasp_mace/          # format
 ```
 
+### Tests
+
+The repository includes a standard-library `unittest` suite built from the
+example inputs. The default run is lightweight and checks that all example
+`INCAR` files parse and all example `POSCAR` files load correctly:
+
+```bash
+python scripts/run_tests.py
+```
+
+To run through a Conda environment without relying on `conda activate`:
+
+```bash
+python scripts/run_tests.py --conda-env mace_env
+```
+
+MACE-backed example smoke tests are opt-in because they need a model checkpoint
+and are slower. They copy examples into temporary directories, reduce the run
+length, execute `vasp-mace`, and verify the expected output files:
+
+```bash
+python scripts/run_tests.py --conda-env mace_env --with-examples --model "$MACE_MODEL_PATH"
+python scripts/run_tests.py --conda-env mace_env --with-examples --example-set all --model "$MACE_MODEL_PATH"
+```
+
 ---
 
 ## License and citation
@@ -609,5 +648,3 @@ If you use `vasp-mace` in your work, please cite:
 **VASP** (if referring to specific VASP formats or comparing against VASP results):
 - Kresse, G.; Furthmüller, J. “Efficiency of ab-initio total energy calculations for metals and semiconductors using a plane-wave basis set.” Computational Materials Science 6 (1996) 15–50.
 - Kresse, G.; Furthmüller, J. “Efficient iterative schemes for ab initio total-energy calculations using a plane-wave basis set.” Physical Review B 54 (1996) 11169–11186.
-
-

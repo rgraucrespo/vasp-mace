@@ -1,4 +1,11 @@
+"""Elastic tensor finite-difference calculations."""
+
+from typing import Any
+
 import numpy as np
+from ase import Atoms
+
+from .types_ import IncarConfig
 
 STRAIN_AMP = 0.01  # dimensionless Voigt strain amplitude (1%)
 EV_A3_TO_GPA = 160.21766  # 1 eV/Å³ in GPa
@@ -56,16 +63,34 @@ def _reuss_averages(C: np.ndarray):
     return K_r, G_r
 
 
-def run_elastic(atoms, calc, cfg, outcar_path: str = "OUTCAR") -> np.ndarray:
-    """
-    Compute the 6×6 elastic tensor via stress-strain finite differences.
+def run_elastic(
+    atoms: Atoms, calc: Any, cfg: IncarConfig, outcar_path: str = "OUTCAR"
+) -> np.ndarray:
+    """Compute and write the 6×6 elastic tensor.
 
     Applies 6 Voigt strain patterns ±STRAIN_AMP (12 single-point calculations),
     retrieves stress from the MACE calculator, and central-differences to Cij.
     Derives Voigt, Reuss, and Hill polycrystalline averages (K, G, E, ν).
     Appends results to outcar_path in VASP format.
 
-    Returns C in GPa (6×6, ASE Voigt ordering: xx yy zz yz xz xy).
+    Parameters
+    ----------
+    atoms
+        Equilibrium structure used as the reference cell. The object itself is
+        not modified; strained copies are evaluated.
+    calc
+        ASE-compatible calculator used to evaluate stress.
+    cfg
+        Parsed INCAR configuration. Currently used for mode context and future
+        extension points.
+    outcar_path
+        OUTCAR path to append the VASP-format elastic tensor block to.
+
+    Returns
+    -------
+    numpy.ndarray
+        Elastic tensor in GPa with ASE Voigt ordering ``xx, yy, zz, yz, xz,
+        xy`` and shape ``(6, 6)``.
     """
     delta = STRAIN_AMP
     cell0 = np.array(atoms.get_cell())

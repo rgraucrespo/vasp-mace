@@ -5,6 +5,7 @@ from typing import List, Optional
 import xml.etree.ElementTree as ET
 
 import numpy as np
+from ase import Atoms
 
 from .logging_utils import StepRecord
 
@@ -230,16 +231,32 @@ def _xml_write(tree, path):
 
 def write_relax_vasprun_xml(
     path: str,
-    atoms_initial,
-    atoms,
+    atoms_initial: Atoms,
+    atoms: Atoms,
     steps: List[StepRecord],
-    incar_raw: Optional[dict] = None,
+    incar_raw: Optional[dict[str, str]] = None,
 ) -> None:
     """Write a VASP-compatible vasprun.xml for a relaxation run.
 
     Root is <modeling> with <generator>, <incar>, <atominfo>,
     <structure name='initialpos'>, per-step <calculation>, and
     <structure name='finalpos'>.
+
+    Parameters
+    ----------
+    path
+        Destination XML path.
+    atoms_initial
+        Structure before relaxation, used as a fallback for the initial
+        structure block.
+    atoms
+        Final relaxed structure.
+    steps
+        Per-step records containing structures, energies, forces, and optional
+        stress tensors.
+    incar_raw
+        Raw INCAR key/value mapping to echo into ``<incar>`` and
+        ``<parameters>``.
     """
     root = ET.Element("modeling")
     _xml_generator(root)
@@ -302,17 +319,33 @@ def write_relax_vasprun_xml(
 
 def write_single_vasprun_xml(
     path: str,
-    atoms,
-    forces,
-    stress=None,
-    energy=None,
-    incar_raw: Optional[dict] = None,
+    atoms: Atoms,
+    forces: np.ndarray,
+    stress: Optional[np.ndarray] = None,
+    energy: Optional[float] = None,
+    incar_raw: Optional[dict[str, str]] = None,
 ) -> None:
     """Write a VASP-compatible vasprun.xml for a single-point calculation.
 
     Follows the same root-level structure as write_relax_vasprun_xml and the
     real VASP output: generator → incar → parameters → atominfo →
     structure[initialpos] → calculation → structure[finalpos].
+
+    Parameters
+    ----------
+    path
+        Destination XML path.
+    atoms
+        Structure used for both initial and final structure blocks.
+    forces
+        Cartesian forces in eV/Å, shape ``(N, 3)``.
+    stress
+        Optional ASE Voigt stress vector in eV/Å³.
+    energy
+        Optional potential energy in eV.
+    incar_raw
+        Raw INCAR key/value mapping to echo into ``<incar>`` and
+        ``<parameters>``.
     """
     root = ET.Element("modeling")
     _xml_generator(root)

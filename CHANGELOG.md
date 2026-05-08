@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Example-based `unittest` suite covering example `INCAR` parsing, `POSCAR` loading, NEB image layouts, and opt-in MACE-backed smoke runs.
+- `scripts/run_tests.py` helper for running tests directly or through `conda run -n <env>`, including quick/all example smoke-test modes.
+- Prominent README and repository-level `NOTICE.md` disclaimer clarifying that `vasp-mace` is independent from VASP Software GmbH and does not include or distribute licensed VASP components.
+
+### Changed
+- Bumped the minimum supported `mace-torch` dependency from `0.3.6` to `0.3.15`.
+- Expanded PEP 484 type annotations and NumPy-style docstrings across public package APIs and shared dataclasses.
+
 ## [2.1.0] - 2026-05-08
 
 ### Added

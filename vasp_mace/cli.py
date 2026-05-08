@@ -31,7 +31,13 @@ from .relax import run_relax, EV_A3_TO_KBAR
 from .md import run_md
 
 
-def main():
+def main() -> None:
+    """Run the ``vasp-mace`` command-line interface.
+
+    The function wraps the internal dispatcher, prints a concise ``[error]``
+    message for uncaught exceptions, and exits with status code 1 on failure.
+    It is exposed as the package console-script entry point.
+    """
     try:
         _run()
     except Exception as e:
@@ -39,7 +45,7 @@ def main():
         sys.exit(1)
 
 
-def _run():
+def _run() -> None:
     ap = argparse.ArgumentParser(description="Minimal VASP-like MACE simulator")
     DEFAULT_MODEL = os.environ.get(
         "MACE_MODEL_PATH",

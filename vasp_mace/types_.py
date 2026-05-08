@@ -1,10 +1,78 @@
+"""Shared dataclasses used by vasp-mace run modes."""
+
 from dataclasses import dataclass, field
 from typing import Dict, Optional
+
 import numpy as np
 
 
 @dataclass
 class IncarConfig:
+    """Parsed subset of VASP-style INCAR settings used by vasp-mace.
+
+    Attributes
+    ----------
+    EDIFFG
+        Convergence criterion. Negative values are force tolerances in eV/Å;
+        positive values are energy-change tolerances in eV per ion for
+        relaxation. NEB treats positive values as a force tolerance.
+    NSW
+        Maximum number of ionic, MD, or NEB optimization steps. ``0`` selects a
+        single-point calculation for non-NEB runs.
+    ISIF
+        Degrees of freedom to relax. ``2`` fixes the cell, ``3`` relaxes
+        positions and the full cell, ``4`` relaxes shape at fixed volume,
+        ``7`` relaxes volume only, and ``8`` relaxes positions plus isotropic
+        volume.
+    PSTRESS
+        Target hydrostatic pressure in kBar.
+    IBRION
+        Run-mode/optimizer selector: ``0`` for MD, ``1``/``2``/``3`` for
+        relaxation optimizers, and ``5``/``6`` for phonons.
+    IVDW
+        DFT-D3 dispersion selector. Supported values are ``0``, ``11``, ``12``,
+        ``13``, and ``14``.
+    TEBEG
+        Initial MD temperature in K.
+    TEEND
+        Final MD temperature in K for a linear ramp. ``-1`` means use
+        ``TEBEG``.
+    POTIM
+        MD timestep in fs, or phonon displacement amplitude in Å for
+        ``IBRION=5/6``.
+    NBLOCK
+        MD trajectory/XDATCAR output interval in steps.
+    MDALGO
+        MD integrator selector: ``1`` for NVE/Andersen, ``2`` for
+        Nosé-Hoover, and ``3`` for Langevin/NPT Langevin.
+    ANDERSEN_PROB
+        Andersen thermostat collision probability per MD step.
+    LANGEVIN_GAMMA
+        Atomic Langevin friction coefficients in ps^-1. A scalar applies to all
+        atoms; multiple values are assigned by species in POSCAR order.
+    LANGEVIN_GAMMA_L
+        Lattice Langevin friction coefficient in ps^-1 for NPT MD.
+    SMASS
+        Nosé-Hoover damping parameter, or fallback Langevin friction when
+        ``LANGEVIN_GAMMA`` is absent.
+    PMASS
+        NPT piston mass in amu. ``0`` requests the automatic default.
+    NFREE
+        Number of finite-difference displacements per phonon degree of freedom:
+        ``1`` for forward differences or ``2`` for central differences.
+    IMAGES
+        Number of intermediate NEB images. Values greater than zero select NEB
+        mode.
+    SPRING
+        NEB spring constant tag. Negative values follow VASP's NEB convention;
+        vasp-mace uses ``abs(SPRING)`` as the spring constant in eV/Å^2.
+    LCLIMB
+        Whether to use climbing-image NEB.
+    raw
+        Raw INCAR key/value strings after comment stripping and key
+        upper-casing.
+    """
+
     EDIFFG: float  # <0 force tol (eV/Å); >0 energy tol (eV)
     NSW: int  # max ionic steps
     ISIF: int  # 2 positions-only, 3 variable-cell, 4 shape+atoms, 7 volume-only, 8 positions+volume
@@ -36,6 +104,20 @@ class IncarConfig:
 
 @dataclass
 class MDRecord:
+    """Single molecular-dynamics step summary.
+
+    Attributes
+    ----------
+    n
+        One-based MD step index.
+    energy_pot
+        Potential energy in eV.
+    energy_kin
+        Kinetic energy in eV.
+    temperature
+        Instantaneous temperature in K.
+    """
+
     n: int  # step index (1-based)
     energy_pot: float  # potential energy (eV)
     energy_kin: float  # kinetic energy (eV)

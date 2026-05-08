@@ -13,9 +13,12 @@ Logging prints max|σ| and max|σ−pI| so PSTRESS runs are easy to diagnose.
 from __future__ import annotations
 
 import os
+from typing import Any, List, Tuple
+
 import numpy as np
 
 ASE_OUT_DIR = "ase_files"
+from ase import Atoms
 from ase.optimize import BFGS, FIRE, LBFGS
 from ase.io.trajectory import Trajectory
 from ase.units import GPa
@@ -33,23 +36,51 @@ except Exception:  # pragma: no cover
 
 from ase.constraints import FixAtoms
 
-from .logging_utils import StepLogger
+from .logging_utils import StepLogger, StepRecord
+from .types_ import IncarConfig
 from .io_vasp import write_xdatcar_header, append_xdatcar_frame
 
 EV_A3_TO_KBAR = 1602.1766208  # 1 eV/Å^3 in kBar
 
 
-def run_relax(atoms, calc, cfg, optimizer: str = "BFGS", pressure_GPa: float = 0.0):
-    """Run relaxation according to INCAR-like cfg.
+def run_relax(
+    atoms: Atoms,
+    calc: Any,
+    cfg: IncarConfig,
+    optimizer: str = "BFGS",
+    pressure_GPa: float = 0.0,
+) -> Tuple[List[StepRecord], bool]:
+    """Run a VASP-style structural relaxation.
 
     Parameters
     ----------
-    atoms : ase.Atoms
-    calc  : ASE calculator
-    cfg   : has attributes EDIFFG, NSW, ISIF, IBRION
-    optimizer : str, fallback optimizer name {'BFGS','FIRE','LBFGS'} used only when
-                IBRION was not explicitly set in the raw INCAR (i.e. 'IBRION' not in cfg.raw).
-    pressure_GPa : float, hydrostatic target pressure (from PSTRESS in INCAR, converted to GPa)
+    atoms
+        Structure to relax. The object is modified in place.
+    calc
+        ASE-compatible calculator attached to ``atoms``.
+    cfg
+        Parsed INCAR settings. ``EDIFFG``, ``NSW``, ``ISIF``, ``IBRION``, and
+        ``raw`` control the optimizer and stopping criteria.
+    optimizer
+        Fallback optimizer name, one of ``"BFGS"``, ``"FIRE"``, or
+        ``"LBFGS"``. This is used only when ``IBRION`` was not explicitly set in
+        the raw INCAR.
+    pressure_GPa
+        Hydrostatic target pressure in GPa, converted from ``PSTRESS`` by the
+        caller.
+
+    Returns
+    -------
+    list of StepRecord
+        Per-step records suitable for OUTCAR, OSZICAR, and vasprun.xml writers.
+    bool
+        Whether the requested convergence criterion was met before ``NSW`` was
+        exhausted.
+
+    Raises
+    ------
+    ValueError
+        If ``cfg.ISIF`` is not supported.
     """
     atoms.calc = calc
 

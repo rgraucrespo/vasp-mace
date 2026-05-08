@@ -1,10 +1,33 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, List, Optional
+
 import numpy as np
 
 
 @dataclass
 class StepRecord:
+    """Snapshot of one ionic/optimization step.
+
+    Attributes
+    ----------
+    n
+        One-based ionic step index.
+    energy
+        Potential energy in eV.
+    dE
+        Energy change relative to the previous logged step in eV.
+    fmax
+        Maximum Cartesian force norm in eV/Å.
+    positions
+        Cartesian positions in Å, shape ``(N, 3)``, if available.
+    forces
+        Cartesian forces in eV/Å, shape ``(N, 3)``, if available.
+    stress
+        ASE Voigt stress in eV/Å³, ordered ``xx, yy, zz, yz, xz, xy``.
+    cell
+        Cell vectors in Å, shape ``(3, 3)``, if available.
+    """
+
     n: int  # ionic step index (1-based)
     energy: float  # total E (eV)
     dE: float  # delta E since previous ionic step (eV)
@@ -18,11 +41,35 @@ class StepRecord:
 
 
 class StepLogger:
-    def __init__(self):
+    """Collect :class:`StepRecord` objects with automatic ``dE`` tracking."""
+
+    def __init__(self) -> None:
+        """Initialize an empty step log."""
         self.steps: List[StepRecord] = []
         self._last_E = None
 
-    def log(self, n: int, energy: float, forces, atoms=None):
+    def log(
+        self, n: int, energy: float, forces: np.ndarray, atoms: Optional[Any] = None
+    ) -> StepRecord:
+        """Add one step to the log.
+
+        Parameters
+        ----------
+        n
+            One-based ionic or NEB step index.
+        energy
+            Potential energy in eV.
+        forces
+            Cartesian force array in eV/Å, shape ``(N, 3)``.
+        atoms
+            Optional ASE ``Atoms`` object used to snapshot positions, cell, and
+            stress.
+
+        Returns
+        -------
+        StepRecord
+            The record appended to ``self.steps``.
+        """
         fmax = float(np.max(np.linalg.norm(forces, axis=1)))
         dE = 0.0 if self._last_E is None else energy - self._last_E
         self._last_E = energy

@@ -1,9 +1,12 @@
 import os
 import math
+from typing import Any
+
 import numpy as np
 from ase import Atoms
 
 from .io_vasp import write_contcar, write_xdatcar_header, append_xdatcar_frame
+from .types_ import IncarConfig
 
 # ---------------------------------------------------------------------------
 # Physical constants for phonon frequency conversion
@@ -19,19 +22,31 @@ _THz_TO_MEV = 4.13567  # meV   per THz
 # ===========================================================================
 
 
-def run_phonons(atoms: Atoms, calc, cfg) -> None:
-    """
-    IBRION=5: all N×3×NFREE Cartesian displacements (no symmetry).
-    IBRION=6: symmetry-reduced displacements via phonopy; falls back to
-              IBRION=5 if phonopy is not installed.
-    ISIF≥3: additionally computes the full 6×6 elastic tensor via stress-strain
-            finite differences (12 extra single-point calculations) and appends
-            results to OUTCAR, matching VASP IBRION=5/6 + ISIF=3 behavior.
+def run_phonons(atoms: Atoms, calc: Any, cfg: IncarConfig) -> None:
+    """Run finite-difference phonon calculations.
 
-    Outputs (VASP-compatible):
-      DYNMAT, XDATCAR, OSZICAR, OUTCAR, CONTCAR
-      ase_files/force_constants.npy
-      ase_files/phonopy_params.yaml   (IBRION=6 only)
+    ``IBRION=5`` evaluates all Cartesian displacements. ``IBRION=6`` uses
+    phonopy symmetry reduction when phonopy is installed and otherwise falls
+    back to the full displacement set. If ``ISIF >= 3``, an elastic tensor is
+    computed after the phonon displacements and appended to ``OUTCAR``.
+
+    Parameters
+    ----------
+    atoms
+        Equilibrium structure to displace. The input object is left at the
+        original geometry.
+    calc
+        ASE-compatible calculator used for force and energy evaluations.
+    cfg
+        Parsed INCAR configuration. ``POTIM`` is interpreted as the
+        displacement amplitude in Å and ``NFREE`` selects forward or central
+        differences.
+
+    Notes
+    -----
+    VASP-compatible outputs are written in the working directory: ``DYNMAT``,
+    ``XDATCAR``, ``OSZICAR``, ``OUTCAR``, and ``CONTCAR``. Additional arrays are
+    written under ``ase_files/``.
     """
     os.makedirs("ase_files", exist_ok=True)
 

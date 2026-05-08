@@ -4,15 +4,28 @@ import os
 import tempfile
 
 import numpy as np
+from ase import Atoms
 from ase.constraints import FixCartesian
 from ase.io import read, write
 
 
-def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True):
-    """Read POSCAR/CONTCAR with ASE.
+def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True) -> Atoms:
+    """Read a POSCAR/CONTCAR file as an ASE ``Atoms`` object.
 
-    If 'Selective dynamics' flags are present and apply_selective_dynamics=True,
-    convert them into ASE FixCartesian constraints so relaxations respect them.
+    Parameters
+    ----------
+    path
+        POSCAR-like file to read.
+    apply_selective_dynamics
+        If ``True``, convert VASP Selective Dynamics flags into ASE
+        ``FixCartesian`` constraints so relaxations respect fixed components.
+
+    Returns
+    -------
+    ase.Atoms
+        Structure read from ``path``. When Selective Dynamics flags are present,
+        the original boolean array is preserved in
+        ``atoms.arrays["selective_dynamics"]``.
     """
     atoms = read(path)
 
@@ -42,11 +55,21 @@ def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True):
     return atoms
 
 
-def write_contcar(path: str, atoms):
-    """Write a VASP-style CONTCAR, preserving Selective Dynamics flags if present.
+def write_contcar(path: str, atoms: Atoms) -> None:
+    """Write a VASP-style CONTCAR file.
 
-    Writes to a temp file first and renames atomically so a failed write
-    never leaves a truncated or corrupt file at *path*.
+    Parameters
+    ----------
+    path
+        Destination path.
+    atoms
+        Structure to write. ASE constraints are emitted as Selective Dynamics
+        flags when possible.
+
+    Notes
+    -----
+    The file is written through a temporary path and atomically renamed so a
+    failed write does not leave a truncated output file.
     """
     dir_ = os.path.dirname(os.path.abspath(path))
     fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
@@ -75,7 +98,7 @@ def write_contcar(path: str, atoms):
 # ---------------------------------------------------------------------------
 
 
-def _xdatcar_header_lines(atoms) -> str:
+def _xdatcar_header_lines(atoms: Atoms) -> str:
     """Return the XDATCAR header block (title, scale, cell, species, counts)."""
     symbols = atoms.get_chemical_symbols()
     species = []
@@ -98,19 +121,34 @@ def _xdatcar_header_lines(atoms) -> str:
     return "\n".join(lines) + "\n"
 
 
-def write_xdatcar_header(path: str, atoms) -> None:
-    """Write the XDATCAR header once (for MD / fixed-cell runs)."""
+def write_xdatcar_header(path: str, atoms: Atoms) -> None:
+    """Write the fixed-cell XDATCAR header.
+
+    Parameters
+    ----------
+    path
+        Destination XDATCAR path.
+    atoms
+        Structure whose cell, formula, species order, and species counts are
+        written to the header.
+    """
     with open(path, "w") as f:
         f.write(_xdatcar_header_lines(atoms))
 
 
 def append_xdatcar_frame(
-    path: str, atoms, step: int, update_header: bool = False
+    path: str, atoms: Atoms, step: int, update_header: bool = False
 ) -> None:
     """Append one frame of fractional coordinates to XDATCAR.
 
     Parameters
     ----------
+    path
+        XDATCAR path to append to.
+    atoms
+        Structure to serialize as fractional coordinates.
+    step
+        Configuration index written after ``Direct configuration=``.
     update_header : bool
         If True, prepend the full lattice header before the configuration line.
         Must be True for cell-relaxing runs (ISIF >= 3) so each frame carries

@@ -1,16 +1,24 @@
-import os, re
+"""Parse the VASP-style INCAR subset supported by vasp-mace."""
+
+import os
+import re
+from typing import List
+
 import numpy as np
+
 from .types_ import IncarConfig
 
 
-def _to_int(v, default):
+def _to_int(v: object, default: int) -> int:
+    """Parse the first whitespace-delimited token as an integer."""
     try:
         return int(re.split(r"\s+", str(v).strip())[0])
     except Exception:
         return default
 
 
-def _to_float(v, default):
+def _to_float(v: object, default: float) -> float:
+    """Parse the first whitespace-delimited token as a float."""
     try:
         return float(re.split(r"\s+", str(v).strip())[0])
     except Exception:
@@ -18,6 +26,7 @@ def _to_float(v, default):
 
 
 def _to_bool(v, default: bool) -> bool:
+    """Parse VASP-style logical values such as ``.TRUE.`` and ``F``."""
     s = str(v).strip().upper().strip(".")
     if s in ("TRUE", "T"):
         return True
@@ -26,7 +35,8 @@ def _to_bool(v, default: bool) -> bool:
     return default
 
 
-def _to_float_list(v, default):
+def _to_float_list(v: object, default: List[float]) -> List[float]:
+    """Parse a whitespace-delimited list of floats."""
     try:
         # Split by any whitespace and filter out empty strings
         parts = [p for p in re.split(r"\s+", str(v).strip()) if p]
@@ -38,10 +48,37 @@ def _to_float_list(v, default):
 
 
 def parse_incar(path: str = "INCAR") -> IncarConfig:
+    """Read a VASP-style INCAR file into an :class:`IncarConfig`.
+
+    Only the INCAR tags implemented by vasp-mace are interpreted. Unknown tags
+    are preserved in ``IncarConfig.raw`` so they can be echoed into output files,
+    but they do not affect the calculation. Inline comments beginning with
+    ``#`` or ``!`` are stripped before parsing.
+
+    Parameters
+    ----------
+    path
+        Path to the INCAR file to parse.
+
+    Returns
+    -------
+    IncarConfig
+        Parsed configuration with VASP-like defaults and normalized values. For
+        example, ``ISIF=0`` and ``ISIF=1`` are coerced to ``ISIF=2`` because
+        vasp-mace always computes the full stress tensor.
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``path`` does not exist.
+    ValueError
+        If a supported tag has an invalid value, such as ``POTIM <= 0`` or an
+        unsupported ``IVDW`` value.
+    """
     if not os.path.isfile(path):
         raise FileNotFoundError(f"INCAR not found: {os.path.abspath(path)}")
 
-    raw = {}
+    raw: dict[str, str] = {}
     with open(path) as fh:
         for line in fh:
             # strip comments (# or !) and whitespace
