@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `LICENSE` file (MIT) and updated `pyproject.toml` to reference it; `NOTICE.md` restructured to lead with the licence statement.
-- `AGENTS.md` with project overview, Python compatibility rules, code-style conventions, module layout, and testing guide for AI coding agents.
 - Example-based `unittest` suite covering example `INCAR` parsing, `POSCAR` loading, NEB image layouts, and opt-in MACE-backed smoke runs.
 - `scripts/run_tests.py` helper for running tests directly or through `conda run -n <env>`, including quick/all example smoke-test modes.
 - Prominent README and repository-level `NOTICE.md` disclaimer clarifying that `vasp-mace` is independent from VASP Software GmbH and does not include or distribute licensed VASP components.

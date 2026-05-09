@@ -20,6 +20,7 @@ dist/
 # Development / internal files
 not_for_release/
 vasp-mace_dev.md
+AGENTS.md
 
 # MD example run artifacts
 examples/example07_PbTe_MD/INCAR
