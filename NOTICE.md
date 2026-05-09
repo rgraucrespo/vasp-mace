@@ -1,4 +1,10 @@
-# Trademark and Project Notice
+# License and Trademark Notice
+
+## License
+
+`vasp-mace` is released under the [MIT License](LICENSE).
+
+## Trademark Notice
 
 `vasp-mace` is an independent open-source project and is not affiliated with,
 endorsed by, or sponsored by VASP Software GmbH.

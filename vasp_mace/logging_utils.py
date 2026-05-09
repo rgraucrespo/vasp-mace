@@ -1,3 +1,5 @@
+"""Step-record dataclasses and logger used across vasp-mace run modes."""
+
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
