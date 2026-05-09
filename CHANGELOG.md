@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Updated citation title to "vasp-mace: a VASP-style workflow interface for MACE machine-learning interatomic potentials".
+
 ## [2.2.0] - 2026-05-09
 
 ### Added
