@@ -151,6 +151,12 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
     spring = _to_float(raw.get("SPRING", -5.0), -5.0)
     lclimb = _to_bool(raw.get("LCLIMB", False), False)
 
+    ml_lheat = _to_bool(raw.get("ML_LHEAT", False), False)
+    ml_heat_interval = _to_int(raw.get("ML_HEAT_INTERVAL", 1), 1)
+    if ml_heat_interval < 1:
+        print(f"[warn] ML_HEAT_INTERVAL={ml_heat_interval} is invalid. Setting to 1.")
+        ml_heat_interval = 1
+
     return IncarConfig(
         EDIFFG=ediffg,
         NSW=nsw,
@@ -172,5 +178,7 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         IMAGES=images,
         SPRING=spring,
         LCLIMB=lclimb,
+        ML_LHEAT=ml_lheat,
+        ML_HEAT_INTERVAL=ml_heat_interval,
         raw=raw,
     )

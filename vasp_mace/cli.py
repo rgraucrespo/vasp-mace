@@ -129,6 +129,12 @@ def _run() -> None:
 
     # --- IBRION=0: MD mode ---
     if cfg.IBRION == 0:
+        if cfg.ML_LHEAT:
+            print(
+                "[warn] ML_LHEAT=.TRUE. recognised but heat-flux backend is not yet "
+                "wired in this build; no ML_HEAT will be written."
+            )
+
         extra_info = ""
         if cfg.MDALGO == 1:
             extra_info = f", ANDERSEN_PROB={cfg.ANDERSEN_PROB}"

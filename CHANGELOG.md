@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- VASP-style `ML_LHEAT` INCAR keyword (default `.FALSE.`) and the `ML_HEAT_INTERVAL` vasp-mace extension (default `1`); both parsed into `IncarConfig`. The MD branch of the CLI prints a clear `[warn]` when `ML_LHEAT = .TRUE.` is set, since the heat-flux backend that actually writes `ML_HEAT` is staged work and is not yet wired in this build.
+- New `vasp_mace.heat` subpackage providing `MLHeatWriter`, `read_ml_heat`, and `write_ml_heat` for the VASP-compatible `ML_HEAT` file format (`NSTEP=… QXYZ=… …` lines, units `eV·Å·fs⁻¹`). The reader tolerates Fortran-style `D` exponents so it can parse files produced by either VASP or vasp-mace.
+- `tests/test_ml_heat_io.py`: round-trip tests for the writer/reader, parsing of the verbatim VASP example block, and INCAR parsing of `ML_LHEAT`/`ML_HEAT_INTERVAL`.
+
 ### Changed
 - Updated citation title to "vasp-mace: a VASP-style workflow interface for MACE machine-learning interatomic potentials".
 
