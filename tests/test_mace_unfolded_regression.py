@@ -1,7 +1,7 @@
 """Opt-in regression test for the MACE unfolded-cell heat-flux backend.
 
 Compares the heat flux computed by ``MACEUnfoldedHeatFluxCalculator`` for the
-shared MgO fixture (see :mod:`tests._heat_flux_fixtures`) to a saved
+shared PbTe fixture (see :mod:`tests._heat_flux_fixtures`) to a saved
 reference. The reference is *not* checked into the repository because it is
 model-checkpoint-specific. Generate it once locally with::
 
@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
-from tests._heat_flux_fixtures import build_mgo_fixture
+from tests._heat_flux_fixtures import build_pbte_fixture
 
 
 REFERENCE_PATH = Path(__file__).resolve().parent / "data" / "mace_unfolded_reference.npz"
@@ -36,7 +36,7 @@ REFERENCE_PATH = Path(__file__).resolve().parent / "data" / "mace_unfolded_refer
 def _compute_reference_flux(model_path: str) -> np.ndarray:
     from vasp_mace.heat import make_heat_flux_calculator
 
-    atoms, velocities = build_mgo_fixture()
+    atoms, velocities = build_pbte_fixture()
     # dtype="auto" → float32 on CUDA/MPS, float64 on CPU. Required to fit on
     # the smaller GPUs (≤16 GB) we routinely use for heat-flux work. The
     # saved reference is therefore both model-checkpoint *and*

@@ -9,8 +9,8 @@ Skipped unless all of the following hold:
   (``pip install vasp-mace[heat]``).
 
 The test asserts only that the backend returns a finite, length-3 heat-flux
-vector for the shared MgO fixture (see :mod:`tests._heat_flux_fixtures`). The
-numerical regression check lives in
+vector for the shared PbTe fixture (see :mod:`tests._heat_flux_fixtures`).
+The numerical regression check lives in
 :mod:`tests.test_mace_unfolded_regression`.
 """
 
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import numpy as np
 
-from tests._heat_flux_fixtures import build_mgo_fixture
+from tests._heat_flux_fixtures import build_pbte_fixture
 
 
 @unittest.skipUnless(
@@ -47,7 +47,7 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
     def test_compute_returns_finite_three_vector(self) -> None:
         from vasp_mace.heat import make_heat_flux_calculator
 
-        atoms, velocities = build_mgo_fixture()
+        atoms, velocities = build_pbte_fixture()
 
         # dtype="auto" → float32 on CUDA/MPS (so the 216-atom × 27-replica
         # unfolded graph fits on a 16 GB GPU), float64 on CPU. The wrapper
