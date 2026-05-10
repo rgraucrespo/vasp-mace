@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vasp-mace"
-version = "2.2.0"
+version = "2.3.0"
 description = "A VASP-like interface for running ML potential calculations with MACE"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -54,6 +54,16 @@ target-version = ["py39", "py310", "py311", "py312"]
 [project.optional-dependencies]
 phonons = [
   "phonopy>=2.20",
+]
+heat = [
+  # MACE unfolded-cell heat-flux backend used when ML_LHEAT = .TRUE.
+  # mace_unfolded is GitHub-only (not on PyPI); `comms` is a logging-only
+  # runtime dependency of mace_unfolded that is also GitHub-only. PyPI does
+  # not accept direct-URL refs in uploaded metadata, so when cutting the
+  # next release these direct URLs need to be stripped (or vendored) before
+  # `python -m build` + upload.
+  "mace_unfolded @ git+https://github.com/pulgon-project/mace-unfolded.git",
+  "comms @ git+https://github.com/sirmarcel/comms.git",
 ]
 dev = [
   "pytest",

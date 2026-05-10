@@ -15,6 +15,7 @@ Outputs:
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, List, Optional
 
@@ -186,7 +187,49 @@ def _per_atom_friction(atoms: Atoms, langevin_gamma: np.ndarray) -> np.ndarray:
 ASE_OUT_DIR = "ase_files"
 
 
-def run_md(atoms: Atoms, calc: Any, cfg: IncarConfig) -> List[MDRecord]:
+def _write_ml_heat_json(
+    path: str,
+    atoms: Atoms,
+    cfg: IncarConfig,
+    heat_calc: Any,
+    model_path: str,
+) -> None:
+    """Write the ``ML_HEAT.json`` sidecar.
+
+    Captures the metadata that downstream Green-Kubo/cepstral tools (e.g.
+    ``sportran``) need in order to interpret the accompanying ``ML_HEAT``
+    file: heat-flux units, integration timestep, write interval, target
+    temperature, cell volume at MD start, and the backend/model/device that
+    produced the flux.
+    """
+    payload = {
+        "format": "vasp_mace_ml_heat/1",
+        "heat_flux_units": "eV*Angstrom/fs",
+        "ml_lheat": True,
+        "flux_type": getattr(heat_calc, "flux_type", "potential"),
+        "time_step_fs": float(cfg.POTIM),
+        "write_interval": int(cfg.ML_HEAT_INTERVAL),
+        "effective_heat_flux_dt_fs": float(cfg.POTIM) * int(cfg.ML_HEAT_INTERVAL),
+        "temperature_K": float(cfg.TEBEG),
+        "volume_A3": float(atoms.get_volume()),
+        "backend": "mace_unfolded",
+        "model_path": model_path,
+        "dtype": getattr(heat_calc, "dtype", None),
+        "device": getattr(heat_calc, "device", None),
+    }
+    with open(path, "w") as fh:
+        json.dump(payload, fh, indent=2)
+        fh.write("\n")
+
+
+def run_md(
+    atoms: Atoms,
+    calc: Any,
+    cfg: IncarConfig,
+    model_path: Optional[str] = None,
+    device: str = "auto",
+    dtype: str = "auto",
+) -> List[MDRecord]:
     """Run NVE, NVT, or NPT molecular dynamics.
 
     Parameters
@@ -200,6 +243,13 @@ def run_md(atoms: Atoms, calc: Any, cfg: IncarConfig) -> List[MDRecord]:
         ``MDALGO=1`` selects NVE or Andersen NVT, ``MDALGO=2`` selects
         Nosé-Hoover NVT, and ``MDALGO=3`` selects Langevin NVT or Langevin NPT
         when ``ISIF=3``.
+    model_path
+        Path to the MACE checkpoint. Only required when
+        ``cfg.ML_LHEAT`` is true so the heat-flux backend can load the
+        model directly (it operates below the ASE calculator interface).
+    device, dtype
+        Forwarded to the heat-flux backend so it follows the same
+        device/dtype resolution as the main calculator.
 
     Returns
     -------
@@ -209,7 +259,8 @@ def run_md(atoms: Atoms, calc: Any, cfg: IncarConfig) -> List[MDRecord]:
     Raises
     ------
     ValueError
-        If ``cfg.MDALGO`` is not supported.
+        If ``cfg.MDALGO`` is not supported, or if ``cfg.ML_LHEAT`` is set
+        but ``model_path`` is missing.
     """
     atoms.calc = calc
     N = len(atoms)
@@ -316,50 +367,107 @@ def run_md(atoms: Atoms, calc: Any, cfg: IncarConfig) -> List[MDRecord]:
     # Open trajectory file; write at each recorded step
     traj = Trajectory(traj_path, "w", atoms)
 
-    records: list[MDRecord] = []
+    # Heat-flux writer + calculator (opt-in via ML_LHEAT). Built before the
+    # main loop so that a model-load or precondition failure is reported
+    # immediately, not after several MD steps.
+    heat_writer = None
+    heat_calc = None
+    if cfg.ML_LHEAT:
+        if not model_path:
+            raise ValueError(
+                "ML_LHEAT=.TRUE. requires a model checkpoint path to load the "
+                "heat-flux backend; pass it via the CLI dispatcher"
+            )
+        from .heat import MLHeatWriter, make_heat_flux_calculator
 
-    for step in range(1, cfg.NSW + 1):
-        # Temperature ramp for Langevin (linear interpolation)
-        if do_ramp and cfg.NSW > 1:
-            frac = (step - 1) / (cfg.NSW - 1)
-            T_target = T_start + frac * (T_end - T_start)
-            if hasattr(dyn, "set_temperature"):
-                dyn.set_temperature(temperature_K=T_target)
-            elif hasattr(dyn, "temp_K"):
-                dyn.temp_K = T_target
-
-        dyn.run(1)  # single MD step
-
-        E_pot = atoms.get_potential_energy()
-        E_kin = atoms.get_kinetic_energy()
-        # Instantaneous temperature from kinetic energy: T = 2*Ekin / (3*N*kB)
-        T_inst = 2.0 * E_kin / (3.0 * N * kB)
-        E_tot = E_pot + E_kin
-
-        rec = MDRecord(n=step, energy_pot=E_pot, energy_kin=E_kin, temperature=T_inst)
-        records.append(rec)
-        append_md_outcar_step("OUTCAR", atoms, step, E_pot, E_kin, T_inst)
-
-        # Stress/Pressure info for stdout if ISIF=3
-        stress_info = ""
-        if cell_relaxing:
-            try:
-                stress = atoms.get_stress(include_ideal_gas=True, voigt=True)
-                p_int = -np.mean(stress[:3])
-                stress_info = f" | P={p_int/GPa*10.0:.2f} kBar"
-            except Exception:
-                pass
-
+        # Pin the heat-flux backend to float64 even when the main calculator
+        # runs at float32 on a GPU: mace-unfolded has a known float32
+        # dtype-mismatch bug (positions stay float64 inside `prepare_graph`
+        # even after `set_default_dtype("float32")`), so float32 raises
+        # `expected scalar type Float but found Double` mid-run. Float64 is
+        # also what the stage-2 regression test relies on.
+        if dtype not in ("auto", "float64"):
+            print(
+                f"[note] ML_LHEAT: heat-flux backend forced to float64 "
+                f"(main calculator stays at --dtype={dtype})."
+            )
+        heat_calc = make_heat_flux_calculator(
+            model_path,
+            settings={"device": device, "dtype": "float64"},
+        )
+        heat_writer = MLHeatWriter("ML_HEAT")
+        _write_ml_heat_json(
+            "ML_HEAT.json",
+            atoms=atoms,
+            cfg=cfg,
+            heat_calc=heat_calc,
+            model_path=model_path,
+        )
         print(
-            f"[step {step}] T={T_inst:.2f} K | "
-            f"Epot={E_pot:.6f} eV | "
-            f"Ekin={E_kin:.6f} eV | "
-            f"Etot={E_tot:.6f} eV{stress_info}"
+            f"[info] ML_LHEAT enabled: writing ML_HEAT every "
+            f"{cfg.ML_HEAT_INTERVAL} step(s) using {heat_calc.__class__.__name__} "
+            f"(device={heat_calc.device}, dtype={heat_calc.dtype})."
         )
 
-        if step % cfg.NBLOCK == 0:
-            append_xdatcar_frame("XDATCAR", atoms, step, update_header=cell_relaxing)
-            traj.write()
+    records: list[MDRecord] = []
 
-    traj.close()
+    try:
+        for step in range(1, cfg.NSW + 1):
+            # Temperature ramp for Langevin (linear interpolation)
+            if do_ramp and cfg.NSW > 1:
+                frac = (step - 1) / (cfg.NSW - 1)
+                T_target = T_start + frac * (T_end - T_start)
+                if hasattr(dyn, "set_temperature"):
+                    dyn.set_temperature(temperature_K=T_target)
+                elif hasattr(dyn, "temp_K"):
+                    dyn.temp_K = T_target
+
+            dyn.run(1)  # single MD step
+
+            E_pot = atoms.get_potential_energy()
+            E_kin = atoms.get_kinetic_energy()
+            # Instantaneous temperature from kinetic energy: T = 2*Ekin / (3*N*kB)
+            T_inst = 2.0 * E_kin / (3.0 * N * kB)
+            E_tot = E_pot + E_kin
+
+            rec = MDRecord(
+                n=step, energy_pot=E_pot, energy_kin=E_kin, temperature=T_inst
+            )
+            records.append(rec)
+            append_md_outcar_step("OUTCAR", atoms, step, E_pot, E_kin, T_inst)
+
+            # Stress/Pressure info for stdout if ISIF=3
+            stress_info = ""
+            if cell_relaxing:
+                try:
+                    stress = atoms.get_stress(include_ideal_gas=True, voigt=True)
+                    p_int = -np.mean(stress[:3])
+                    stress_info = f" | P={p_int/GPa*10.0:.2f} kBar"
+                except Exception:
+                    pass
+
+            print(
+                f"[step {step}] T={T_inst:.2f} K | "
+                f"Epot={E_pot:.6f} eV | "
+                f"Ekin={E_kin:.6f} eV | "
+                f"Etot={E_tot:.6f} eV{stress_info}"
+            )
+
+            if step % cfg.NBLOCK == 0:
+                append_xdatcar_frame(
+                    "XDATCAR", atoms, step, update_header=cell_relaxing
+                )
+                traj.write()
+
+            # Heat flux: compute and append after the integrator step so the
+            # velocities reflect the post-step state, matching VASP's per-step
+            # ML_HEAT cadence.
+            if heat_writer is not None and step % cfg.ML_HEAT_INTERVAL == 0:
+                qxyz = heat_calc.compute(atoms, atoms.get_velocities())
+                heat_writer.write(step, qxyz)
+    finally:
+        traj.close()
+        if heat_writer is not None:
+            heat_writer.close()
+
     return records

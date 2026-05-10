@@ -63,6 +63,15 @@ def _run() -> None:
 
     cfg = parse_incar("INCAR")
 
+    # ML_LHEAT is meaningful only for MD (IBRION=0). If it's set elsewhere,
+    # ignore the keyword but tell the user — silently swallowing it would
+    # mask a typo'd INCAR.
+    if cfg.ML_LHEAT and cfg.IBRION != 0:
+        print(
+            f"[warn] ML_LHEAT=.TRUE. is only meaningful for MD (IBRION=0); "
+            f"IBRION={cfg.IBRION} detected. Ignoring ML_LHEAT."
+        )
+
     # --- IMAGES > 0: NEB mode -----------------------------------------------
     # Must be checked before read_poscar: NEB has no top-level POSCAR;
     # images live in 00/, 01/, … subdirectories.
@@ -92,8 +101,26 @@ def _run() -> None:
 
     # Load calculator; IVDW > 0 enables empirical dispersion (DFT-D3)
     dispersion = cfg.IVDW > 0
+
+    # ML_LHEAT requires a float64 heat-flux backend (mace-unfolded has a
+    # float32 dtype-mismatch bug). Constructing two MACECalculators with
+    # different dtypes in the same process pollutes torch's global default
+    # dtype and the integrator's float32 batch ends up touching the
+    # float64 unfolded graph mid-run. Avoid that by forcing the main MD
+    # calculator to float64 too whenever ML_LHEAT is on.
+    main_dtype = args.dtype
+    if cfg.ML_LHEAT and cfg.IBRION == 0 and args.dtype != "float64":
+        if args.dtype != "auto":
+            print(
+                f"[note] ML_LHEAT: forcing main calculator to float64 "
+                f"(--dtype={args.dtype} ignored). mace-unfolded has a "
+                f"float32 dtype bug, and mixing float32/float64 calculators "
+                f"in the same process is unreliable."
+            )
+        main_dtype = "float64"
+
     calc, device, dtype = load_calc(
-        args.model, device=args.device, dtype=args.dtype, dispersion=dispersion
+        args.model, device=args.device, dtype=main_dtype, dispersion=dispersion
     )
     atoms.calc = calc
 
@@ -129,6 +156,13 @@ def _run() -> None:
 
     # --- IBRION=0: MD mode ---
     if cfg.IBRION == 0:
+        if cfg.ML_LHEAT and cfg.ISIF == 3:
+            print(
+                "[note] ML_LHEAT=.TRUE. combined with ISIF=3 (NPT): the cell "
+                "volume drifts during the run, so the volume_A3 recorded in "
+                "ML_HEAT.json reflects the initial cell only."
+            )
+
         extra_info = ""
         if cfg.MDALGO == 1:
             extra_info = f", ANDERSEN_PROB={cfg.ANDERSEN_PROB}"
@@ -145,14 +179,17 @@ def _run() -> None:
         )
         t0_wall = time.time()
         t0_cpu = time.process_time()
-        records = run_md(atoms, calc, cfg)
+        records = run_md(
+            atoms, calc, cfg, model_path=args.model, device=device, dtype=dtype
+        )
         elapsed = time.time() - t0_wall
         cpu_t = time.process_time() - t0_cpu
         write_contcar("CONTCAR", atoms)
         write_outcar_tail("OUTCAR", elapsed, cpu_t)
-        print(
-            f"[done] MD complete ({len(records)} steps). Wrote XDATCAR, CONTCAR, OUTCAR."
-        )
+        outputs = "XDATCAR, CONTCAR, OUTCAR"
+        if cfg.ML_LHEAT:
+            outputs += ", ML_HEAT, ML_HEAT.json"
+        print(f"[done] MD complete ({len(records)} steps). Wrote {outputs}.")
         return
 
     # --- NSW=0: single-point ---

@@ -68,6 +68,13 @@ class IncarConfig:
         vasp-mace uses ``abs(SPRING)`` as the spring constant in eV/Å^2.
     LCLIMB
         Whether to use climbing-image NEB.
+    ML_LHEAT
+        VASP-style logical: when true, MACE MD writes a VASP-compatible
+        ``ML_HEAT`` file with per-step heat-flux components. Only meaningful
+        for MD runs (``IBRION = 0``); ignored otherwise.
+    ML_HEAT_INTERVAL
+        vasp-mace extension: write ``ML_HEAT`` every ``ML_HEAT_INTERVAL`` MD
+        steps. Defaults to ``1`` (every step) to match VASP behaviour.
     raw
         Raw INCAR key/value strings after comment stripping and key
         upper-casing.
@@ -99,6 +106,8 @@ class IncarConfig:
         -5.0
     )  # NEB: spring constant; SPRING < 0 (NEB convention); k = |SPRING| eV/Å^2
     LCLIMB: bool = False  # NEB: enable climbing-image (CI-NEB)
+    ML_LHEAT: bool = False  # VASP-style: write ML_HEAT during MD
+    ML_HEAT_INTERVAL: int = 1  # vasp-mace extension: write every N MD steps
     raw: Dict[str, str] = field(default_factory=dict)
 
 

@@ -194,6 +194,32 @@ SMOKE_CASES = (
         tags=("all",),
         optional_import="phonopy",
     ),
+    SmokeCase(
+        name="example10_heat_flux_pbte",
+        example_dir="example10_heat_flux",
+        incar="""
+            IBRION           = 0
+            MDALGO           = 3
+            ISIF             = 2
+            NSW              = 1
+            TEBEG            = 300
+            POTIM            = 1.0
+            NBLOCK           = 1
+            LANGEVIN_GAMMA   = 10.0 20.0
+            ML_LHEAT         = .TRUE.
+            ML_HEAT_INTERVAL = 1
+        """,
+        outputs=(
+            "CONTCAR",
+            "OUTCAR",
+            "XDATCAR",
+            "ML_HEAT",
+            "ML_HEAT.json",
+            "ase_files/mace.traj",
+        ),
+        tags=("all",),
+        optional_import="mace_unfolded",
+    ),
 )
 
 
