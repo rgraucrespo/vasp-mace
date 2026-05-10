@@ -83,13 +83,18 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         Periodic-boundary flags forwarded to the unfolder. Stage 2 supports
         only fully periodic systems; non-periodic configurations are rejected.
     forward
-        Whether to use forward-mode autodiff inside ``mace-unfolded``. The
-        default (``True``) matches the upstream production script
-        (``perform_mace_green_kubo.py``) and runs one forward-mode JVP per
-        call, which is several times faster than the three reverse-mode
-        ``grad`` passes used when ``forward=False``. Reverse mode uses less
-        peak memory but is essentially unworkable for per-MD-step heat-flux
-        evaluation on the kinds of cells the unfolder requires.
+        Whether to use forward-mode autodiff inside ``mace-unfolded``.
+        Defaults to ``False`` (reverse-mode, three ``grad`` passes per call)
+        because the forward-mode (``functorch.jvp``) path in mace-unfolded
+        currently fails with ``mace-torch`` ≥ 0.3.10: ``mace.modules.utils
+        .prepare_graph`` calls ``data["positions"].requires_grad_(True)``
+        inside ``model.forward``, which functorch transforms forbid.
+        ``forward=True`` is the upstream production-script default and is
+        several times faster when it works, so keep it on the radar — once
+        the upstream incompatibility is patched (vendor a compatible
+        ``mace-torch`` pin, or a fix lands in mace-unfolded), flip the
+        default. Reverse mode is workable on a GPU; on CPU it can take
+        many minutes per call for the cell sizes the unfolder requires.
 
     Raises
     ------
@@ -107,7 +112,7 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         device: str = "auto",
         dtype: str = "float64",
         pbc: Sequence[bool] = (True, True, True),
-        forward: bool = True,
+        forward: bool = False,
     ) -> None:
         if flux_type != "potential":
             raise ValueError(
