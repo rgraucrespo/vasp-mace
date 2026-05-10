@@ -49,9 +49,12 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
 
         atoms, velocities = build_mgo_fixture()
 
+        # dtype="auto" → float32 on CUDA/MPS (so the 216-atom × 27-replica
+        # unfolded graph fits on a 16 GB GPU), float64 on CPU. The wrapper
+        # always returns the flux as np.float64 regardless of internal dtype.
         calc = make_heat_flux_calculator(
             self.model_path,
-            settings={"device": "auto", "dtype": "float64"},
+            settings={"device": "auto", "dtype": "auto"},
         )
         qxyz = calc.compute(atoms, velocities)
 
