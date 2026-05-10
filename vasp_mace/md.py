@@ -397,7 +397,7 @@ def run_md(
         )
         heat_writer = MLHeatWriter("ML_HEAT")
         _write_ml_heat_json(
-            "ML_HEAT.json",
+            os.path.join(ASE_OUT_DIR, "ML_HEAT.json"),
             atoms=atoms,
             cfg=cfg,
             heat_calc=heat_calc,

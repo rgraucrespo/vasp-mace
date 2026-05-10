@@ -214,7 +214,7 @@ SMOKE_CASES = (
             "OUTCAR",
             "XDATCAR",
             "ML_HEAT",
-            "ML_HEAT.json",
+            "ase_files/ML_HEAT.json",
             "ase_files/mace.traj",
         ),
         tags=("all",),

@@ -320,7 +320,7 @@ NBLOCK           = 10
 
 ### Heat flux (ML_HEAT)
 
-Setting `ML_LHEAT = .TRUE.` in INCAR enables per-step heat-flux output during a MACE MD run. `vasp-mace` writes a VASP-compatible `ML_HEAT` file (one `NSTEP=… QXYZ= …` line per recorded step, units `eV·Å·fs⁻¹`) plus an `ML_HEAT.json` sidecar describing the timestep, write interval, target temperature, cell volume at MD start, backend, model, dtype, and device. The format is byte-compatible with VASP's `ML_LHEAT` output, so downstream analysis tools that read VASP `ML_HEAT` files work unchanged.
+Setting `ML_LHEAT = .TRUE.` in INCAR enables per-step heat-flux output during a MACE MD run. `vasp-mace` writes a VASP-compatible `ML_HEAT` file in the run directory (one `NSTEP=… QXYZ= …` line per recorded step, units `eV·Å·fs⁻¹`), plus an `ase_files/ML_HEAT.json` sidecar describing the timestep, write interval, target temperature, cell volume at MD start, backend, model, dtype, and device. `ML_HEAT` itself is byte-compatible with VASP's `ML_LHEAT` output, so downstream analysis tools that read VASP `ML_HEAT` files work unchanged; the JSON sidecar lives under `ase_files/` because VASP does not produce it.
 
 **Backend.** `vasp-mace` does not implement the heat flux directly. It wraps [`mace-unfolded`](https://github.com/pulgon-project/mace-unfolded) (Wieser *et al.*, *J. Chem. Theory Comput.* **22**, 513 (2026)), which evaluates the autograd-based potential heat flux on an unfolded nonperiodic environment. Install the optional dependency:
 
@@ -336,9 +336,9 @@ The `[heat]` extra installs `mace-unfolded` and its `comms` runtime dependency d
 - Only fully periodic 3D bulk solids are accepted. Each perpendicular cell height must strictly exceed `2 × num_message_passing_layers × r_cutoff + 2 Å` (26 Å for MACE-MP-0). Slabs, wires, molecules, and small primitive cells are rejected with a clear `ValueError` rather than silently returning a wrong flux. This restriction matches the typical Green-Kubo workflow for thermal conductivity, which already needs supercells of this size for convergence.
 - `mace-unfolded`'s forward-mode autodiff path is currently incompatible with `mace-torch ≥ 0.3.10` (a `prepare_graph` call sets `requires_grad_(True)` inside `model.forward`, which `functorch.jvp` forbids). The default backend setting is reverse-mode, which is several times slower per call but works on a current MACE checkpoint. On a CUDA GPU, reverse-mode is fast enough for production; on CPU it can take many minutes per call.
 
-**Combining with `ISIF = 3` (NPT).** When `ML_LHEAT = .TRUE.` is combined with NPT (`MDALGO = 3, ISIF = 3`), the cell volume drifts during the run. The `volume_A3` field in `ML_HEAT.json` records the *initial* cell volume only; downstream tools should re-derive the time-resolved volume from the trajectory if needed. `vasp-mace` prints a `[note]` reminding the user when this combination is selected.
+**Combining with `ISIF = 3` (NPT).** When `ML_LHEAT = .TRUE.` is combined with NPT (`MDALGO = 3, ISIF = 3`), the cell volume drifts during the run. The `volume_A3` field in `ase_files/ML_HEAT.json` records the *initial* cell volume only; downstream tools should re-derive the time-resolved volume from the trajectory if needed. `vasp-mace` prints a `[note]` reminding the user when this combination is selected.
 
-**Post-processing.** `vasp-mace` itself does not compute thermal conductivity. Pass the resulting `ML_HEAT` to [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for Green-Kubo / cepstral analysis. The `ML_HEAT.json` sidecar carries the metadata `sportran` needs (timestep, units, temperature, volume, dtype).
+**Post-processing.** `vasp-mace` itself does not compute thermal conductivity. Pass the resulting `ML_HEAT` to [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for Green-Kubo / cepstral analysis. The `ase_files/ML_HEAT.json` sidecar carries the metadata `sportran` needs (timestep, units, temperature, volume, dtype).
 
 ```
 IBRION         = 0
@@ -432,8 +432,10 @@ While `vasp-mace` aims for a high degree of compatibility, there are important t
 |------|-------------|
 | `CONTCAR` | Final structure |
 | `XDATCAR` | Trajectory in fractional coordinates (written every `NBLOCK` steps) |
+| `ML_HEAT` | Per-step heat-flux vector (VASP-compatible format, `eV·Å·fs⁻¹`). Only written when `ML_LHEAT = .TRUE.` |
 | `ase_files/mace.traj` | Full ASE binary trajectory |
 | `ase_files/md.log` | ASE MD log (step, time, energy, temperature) |
+| `ase_files/ML_HEAT.json` | Heat-flux metadata sidecar (timestep, write interval, target temperature, cell volume at MD start, backend, model, dtype, device). Only written when `ML_LHEAT = .TRUE.` |
 
 ### NEB (IMAGES ≥ 1)
 
@@ -627,7 +629,7 @@ Requires `phonopy`: `pip install phonopy` or `pip install vasp-mace[phonons]`.
 
 ### example10 — PbTe heat-flux MD for Green-Kubo
 
-4×4×4 PbTe rock-salt supercell at `a = 6.55 Å` (512 atoms; perpendicular heights 26.2 Å, just above the 26 Å bound enforced by the heat-flux backend for MACE-MP-0). NVT Langevin MD with `ML_LHEAT = .TRUE.` produces an `ML_HEAT` file (one `NSTEP=… QXYZ= …` line per MD step, units `eV·Å·fs⁻¹`) and an `ML_HEAT.json` sidecar with the metadata that downstream Green-Kubo tools need.
+4×4×4 PbTe rock-salt supercell at `a = 6.55 Å` (512 atoms; perpendicular heights 26.2 Å, just above the 26 Å bound enforced by the heat-flux backend for MACE-MP-0). NVT Langevin MD with `ML_LHEAT = .TRUE.` produces an `ML_HEAT` file in the run directory (one `NSTEP=… QXYZ= …` line per MD step, units `eV·Å·fs⁻¹`) and an `ase_files/ML_HEAT.json` sidecar with the metadata that downstream Green-Kubo tools need.
 
 ```
 IBRION           = 0

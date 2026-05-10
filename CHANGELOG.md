@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Moved the `ML_HEAT.json` sidecar from the run-directory root into `ase_files/ML_HEAT.json`, matching the project convention that `ase_files/` holds outputs VASP itself does not produce (`md.log`, `mace.traj`, `force_constants.npy`, …). `ML_HEAT` continues to be written at the run-directory root because it is the file VASP's `ML_LHEAT` workflow generates and downstream tools (e.g. `sportran`) expect it there.
+
 ## [2.3.0] - 2026-05-10
 
 ### Added

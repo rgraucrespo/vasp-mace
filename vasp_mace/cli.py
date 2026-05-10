@@ -160,7 +160,7 @@ def _run() -> None:
             print(
                 "[note] ML_LHEAT=.TRUE. combined with ISIF=3 (NPT): the cell "
                 "volume drifts during the run, so the volume_A3 recorded in "
-                "ML_HEAT.json reflects the initial cell only."
+                "ase_files/ML_HEAT.json reflects the initial cell only."
             )
 
         extra_info = ""
@@ -188,7 +188,7 @@ def _run() -> None:
         write_outcar_tail("OUTCAR", elapsed, cpu_t)
         outputs = "XDATCAR, CONTCAR, OUTCAR"
         if cfg.ML_LHEAT:
-            outputs += ", ML_HEAT, ML_HEAT.json"
+            outputs += ", ML_HEAT, ase_files/ML_HEAT.json"
         print(f"[done] MD complete ({len(records)} steps). Wrote {outputs}.")
         return
 
