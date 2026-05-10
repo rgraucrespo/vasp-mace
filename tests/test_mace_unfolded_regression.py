@@ -1,9 +1,9 @@
 """Opt-in regression test for the MACE unfolded-cell heat-flux backend.
 
-Compares the heat flux computed by ``MACEUnfoldedHeatFluxCalculator`` for a
-fixed 8-atom MgO configuration to a saved reference. The reference is *not*
-checked into the repository because it is model-checkpoint-specific. Generate
-it once locally with::
+Compares the heat flux computed by ``MACEUnfoldedHeatFluxCalculator`` for the
+shared MgO fixture (see :mod:`tests._heat_flux_fixtures`) to a saved
+reference. The reference is *not* checked into the repository because it is
+model-checkpoint-specific. Generate it once locally with::
 
     RUN_VASP_MACE_EXAMPLES=1 \\
     MACE_MODEL_PATH=/path/to/your.model \\
@@ -24,28 +24,19 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
+
+from tests._heat_flux_fixtures import build_mgo_fixture
 
 
 REFERENCE_PATH = Path(__file__).resolve().parent / "data" / "mace_unfolded_reference.npz"
 
 
-def _build_fixture() -> Tuple[object, np.ndarray]:
-    """Return the deterministic atoms / velocities used by the regression."""
-    from ase.build import bulk
-
-    atoms = bulk("MgO", "rocksalt", a=4.211, cubic=True)
-    rng = np.random.default_rng(42)
-    velocities = rng.normal(0.0, 0.005, size=(len(atoms), 3))
-    return atoms, velocities
-
-
 def _compute_reference_flux(model_path: str) -> np.ndarray:
     from vasp_mace.heat import make_heat_flux_calculator
 
-    atoms, velocities = _build_fixture()
+    atoms, velocities = build_mgo_fixture()
     calc = make_heat_flux_calculator(
         model_path,
         settings={"device": "auto", "dtype": "float64"},

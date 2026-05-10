@@ -9,7 +9,7 @@ Skipped unless all of the following hold:
   (``pip install vasp-mace[heat]``).
 
 The test asserts only that the backend returns a finite, length-3 heat-flux
-vector for a fixed 8-atom MgO configuration with deterministic velocities. The
+vector for the shared MgO fixture (see :mod:`tests._heat_flux_fixtures`). The
 numerical regression check lives in
 :mod:`tests.test_mace_unfolded_regression`.
 """
@@ -22,6 +22,8 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+
+from tests._heat_flux_fixtures import build_mgo_fixture
 
 
 @unittest.skipUnless(
@@ -43,13 +45,9 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
         self.model_path = model
 
     def test_compute_returns_finite_three_vector(self) -> None:
-        from ase.build import bulk
-
         from vasp_mace.heat import make_heat_flux_calculator
 
-        atoms = bulk("MgO", "rocksalt", a=4.211, cubic=True)
-        rng = np.random.default_rng(42)
-        velocities = rng.normal(0.0, 0.005, size=(len(atoms), 3))
+        atoms, velocities = build_mgo_fixture()
 
         calc = make_heat_flux_calculator(
             self.model_path,
