@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Moved the `ML_HEAT.json` sidecar from the run-directory root into `ase_files/ML_HEAT.json`, matching the project convention that `ase_files/` holds outputs VASP itself does not produce (`md.log`, `mace.traj`, `force_constants.npy`, …). `ML_HEAT` continues to be written at the run-directory root because it is the file VASP's `ML_LHEAT` workflow generates and downstream tools (e.g. `sportran`) expect it there.
 
+### Documentation
+- Added `ML_LHEAT` heat flux to the top-of-README Features list.
+- README "Molecular dynamics" output-files table now lists `ML_HEAT` and `ase_files/ML_HEAT.json` explicitly.
+
 ## [2.3.0] - 2026-05-10
 
 ### Added
