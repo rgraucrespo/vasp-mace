@@ -37,18 +37,17 @@ def _compute_reference_flux(model_path: str) -> np.ndarray:
     from vasp_mace.heat import make_heat_flux_calculator
 
     atoms, velocities = build_pbte_fixture()
-    # dtype="auto" → float32 on CUDA/MPS, float64 on CPU. Required to fit on
-    # the smaller GPUs (≤16 GB) we routinely use for heat-flux work. The
-    # saved reference is therefore both model-checkpoint *and*
-    # hardware-specific; regenerate it on the same device + dtype where you
-    # plan to run the regression.
+    # Stay on the calculator's float64 default end-to-end (mace-unfolded
+    # has a float32 dtype-mismatch bug; see test_mace_heat_flux_smoke.py).
+    # The saved reference is therefore model-checkpoint and hardware
+    # specific; regenerate on the device where you plan to run the
+    # regression.
     # cell_size_margin=-100 disables the production cell-size check; see
     # the comment in tests/test_mace_heat_flux_smoke.py for the rationale.
     calc = make_heat_flux_calculator(
         model_path,
         settings={
             "device": "auto",
-            "dtype": "auto",
             "cell_size_margin": -100.0,
         },
     )

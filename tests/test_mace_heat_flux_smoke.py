@@ -49,18 +49,19 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
 
         atoms, velocities = build_pbte_fixture()
 
-        # dtype="auto" → float32 on CUDA/MPS (so the 216-atom × 27-replica
-        # unfolded graph fits on a 16 GB GPU), float64 on CPU. The wrapper
-        # always returns the flux as np.float64 regardless of internal dtype.
-        # cell_size_margin=-100 disables the production cell-size check
-        # (3×3×3 MgO satisfies mace-unfolded's L > R requirement but not
-        # the stricter L > 2R + 2 Å vasp-mace bound). Production callers
-        # never touch this; only unit tests do.
+        # Stay on the calculator's float64 default end-to-end: mace-unfolded
+        # has an internal dtype-mismatch bug under float32 (positions stay
+        # float64 even after `set_default_dtype("float32")`), and the small
+        # MACE-MP-0 + 64-atom PbTe configuration fits comfortably in 16 GB
+        # of GPU memory at float64 anyway. cell_size_margin=-100 disables
+        # the production cell-size check (the 2×2×2 PbTe fixture clears
+        # mace-unfolded's L > R requirement but not the stricter
+        # L > 2R + 2 Å vasp-mace bound). Production callers never touch
+        # this; only unit tests do.
         calc = make_heat_flux_calculator(
             self.model_path,
             settings={
                 "device": "auto",
-                "dtype": "auto",
                 "cell_size_margin": -100.0,
             },
         )
