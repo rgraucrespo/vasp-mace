@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vasp-mace"
-version = "2.3.0"
+version = "2.3.1"
 description = "A VASP-like interface for running ML potential calculations with MACE"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-05-10
+
 ### Changed
 - Moved the `ML_HEAT.json` sidecar from the run-directory root into `ase_files/ML_HEAT.json`, matching the project convention that `ase_files/` holds outputs VASP itself does not produce (`md.log`, `mace.traj`, `force_constants.npy`, …). `ML_HEAT` continues to be written at the run-directory root because it is the file VASP's `ML_LHEAT` workflow generates and downstream tools (e.g. `sportran`) expect it there.
 
@@ -167,7 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.0.0...v2.1.0
