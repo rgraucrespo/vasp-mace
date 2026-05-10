@@ -26,6 +26,7 @@ See [NOTICE.md](NOTICE.md) for the repository-level notice.
 - **Single-point** energy, force, and stress evaluation (`NSW = 0`)
 - **Geometry relaxation** of atomic positions and/or unit cell, driven by MACE potentials
 - **Molecular dynamics** (NVE, NVT Langevin/Nosé-Hoover/Andersen, NPT Langevin) with XDATCAR output
+- **Heat flux for Green-Kubo** (`ML_LHEAT = .TRUE.`): per-step VASP-compatible `ML_HEAT` from MACE MD via the unfolded-cell autograd backend (`mace-unfolded`); for 3D bulk solids only. Post-process with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for thermal conductivity
 - **Nudged Elastic Band (NEB)**: minimum-energy path and transition-state search via ASE's MDMin optimizer; optional climbing-image NEB (`LCLIMB = .TRUE.`, VTST convention)
 - **Phonon calculations**: Γ-point force constants and frequencies via finite differences (`IBRION = 5`); symmetry-reduced displacements via phonopy (`IBRION = 6`), with VASP-compatible `DYNMAT` and `OUTCAR` output
 - **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill polycrystalline averages (K, G, E, ν) via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
