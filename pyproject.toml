@@ -55,6 +55,11 @@ target-version = ["py39", "py310", "py311", "py312"]
 phonons = [
   "phonopy>=2.20",
 ]
+heat = [
+  # MACE unfolded-cell heat-flux backend used when ML_LHEAT = .TRUE.
+  # See https://github.com/pulgon-project/mace-unfolded.
+  "mace_unfolded",
+]
 dev = [
   "pytest",
   "black",
