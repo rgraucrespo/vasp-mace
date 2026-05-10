@@ -1,0 +1,26 @@
+# Heat-flux MD example: ML_LHEAT writes a VASP-compatible ML_HEAT file
+# alongside an ML_HEAT.json sidecar.  Pass the resulting ML_HEAT to
+# `sportran` (https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898)
+# for Green-Kubo / cepstral analysis — vasp-mace itself does not compute
+# thermal conductivity.
+#
+# Cell-size precondition: vasp-mace rejects supercells whose perpendicular
+# heights are smaller than 2 × num_message_passing_layers × r_cutoff + 2 Å.
+# For MACE-MP-0 (r_cutoff = 6 Å, num_interactions = 2) the bound is 26 Å;
+# this 4×4×4 PbTe supercell at a = 6.55 Å gives 26.2 Å heights — just above.
+
+# MD general
+IBRION         = 0              # Molecular dynamics mode
+NSW            = 100            # Number of MD steps (production: 10000+)
+TEBEG          = 300            # Starting temperature (K)
+POTIM          = 1.0            # MD timestep (fs)
+NBLOCK         = 10             # Write XDATCAR every N steps
+ISIF           = 2              # Fixed cell (NVT)
+
+# Thermostat
+MDALGO         = 3              # Langevin
+LANGEVIN_GAMMA = 10.0 20.0      # Per-species friction (Pb, Te) in ps^-1
+
+# Heat flux
+ML_LHEAT          = .TRUE.      # Write ML_HEAT every step during MD
+ML_HEAT_INTERVAL  = 1           # vasp-mace extension: write every N steps

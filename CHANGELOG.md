@@ -7,16 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-05-10
+
 ### Added
-- VASP-style `ML_LHEAT` INCAR keyword (default `.FALSE.`) and the `ML_HEAT_INTERVAL` vasp-mace extension (default `1`); both parsed into `IncarConfig`. The MD branch of the CLI prints a clear `[warn]` when `ML_LHEAT = .TRUE.` is set, since the heat-flux backend that actually writes `ML_HEAT` is staged work and is not yet wired in this build.
-- New `vasp_mace.heat` subpackage providing `MLHeatWriter`, `read_ml_heat`, and `write_ml_heat` for the VASP-compatible `ML_HEAT` file format (`NSTEP=… QXYZ=… …` lines, units `eV·Å·fs⁻¹`). The reader tolerates Fortran-style `D` exponents so it can parse files produced by either VASP or vasp-mace.
-- `vasp_mace.heat.heat_flux.HeatFluxCalculator` abstract interface and `make_heat_flux_calculator` factory; `MACEUnfoldedHeatFluxCalculator` adapter wrapping [`mace-unfolded`](https://github.com/pulgon-project/mace-unfolded) for the autograd-based unfolded-cell potential heat flux. `mace_unfolded` ships as an opt-in extra (`pip install vasp-mace[heat]`); because `mace_unfolded` and its logging dependency [`comms`](https://github.com/sirmarcel/comms) are both GitHub-only, the `[heat]` extra installs them via direct git URLs. Default install (without `[heat]`) is unchanged. The MD loop is not yet wired into this backend — that wiring lands in the next stage.
-- Scope-restriction precondition for the heat-flux backend: the first release deliberately supports only fully periodic 3D bulk solids in supercells where every perpendicular cell height exceeds `2 × num_message_passing_layers × r_cutoff + cell_size_margin` (default 2 Å). Slabs, wires, molecules, and small primitive cells are rejected with a clear `ValueError` rather than silently returning a wrong flux. Exposed as `vasp_mace.heat.validate_3d_bulk_cell`. Covered by `tests/test_heat_flux_cell_check.py` (default suite).
+- VASP-style `ML_LHEAT` INCAR keyword (default `.FALSE.`) and the `ML_HEAT_INTERVAL` vasp-mace extension (default `1`); both parsed into `IncarConfig`. When `ML_LHEAT = .TRUE.` is set on an MD run (`IBRION = 0`), `vasp-mace` writes a VASP-compatible `ML_HEAT` file (one `NSTEP=… QXYZ= …` line per `ML_HEAT_INTERVAL` step, units `eV·Å·fs⁻¹`) plus an `ML_HEAT.json` sidecar with timestep, write interval, target temperature, cell volume at MD start, backend, model path, dtype, and device. Setting `ML_LHEAT = .TRUE.` outside MD is ignored with a clear `[warn]`; combining it with `ISIF = 3` (NPT) prints a `[note]` because the recorded volume becomes representative only.
+- New `vasp_mace.heat` subpackage providing `MLHeatWriter`, `read_ml_heat`, and `write_ml_heat` for the VASP-compatible `ML_HEAT` file format. The reader tolerates Fortran-style `D` exponents so it can parse files produced by either VASP or vasp-mace.
+- `vasp_mace.heat.heat_flux.HeatFluxCalculator` abstract interface and `make_heat_flux_calculator` factory; `MACEUnfoldedHeatFluxCalculator` adapter wrapping [`mace-unfolded`](https://github.com/pulgon-project/mace-unfolded) (Wieser *et al.*, *J. Chem. Theory Comput.* **22**, 513 (2026)) for the autograd-based unfolded-cell **potential** heat flux. Convective and gauge-fixed flavours are deferred. `mace_unfolded` ships as an opt-in extra (`pip install -e ".[heat]"`); because `mace_unfolded` and its logging dependency [`comms`](https://github.com/sirmarcel/comms) are both GitHub-only, the `[heat]` extra installs them via direct git URLs. Default install (without `[heat]`) is unchanged.
+- Scope-restriction precondition: the first release deliberately supports only fully periodic 3D bulk solids in supercells where every perpendicular cell height exceeds `2 × num_message_passing_layers × r_cutoff + cell_size_margin` (default 2 Å, i.e. 26 Å for MACE-MP-0). Slabs, wires, molecules, and small primitive cells are rejected with a clear `ValueError` rather than silently returning a wrong flux. Exposed as `vasp_mace.heat.validate_3d_bulk_cell`.
+- `examples/example10_heat_flux/`: 512-atom 4×4×4 PbTe NVT Langevin MD with `ML_LHEAT = .TRUE.` as a runnable starting point for Green-Kubo workflows. The cell is sized at `a = 6.55 Å` so the 26.2 Å perpendicular heights satisfy the precondition.
+- README "Heat flux (ML_HEAT)" section documenting the VASP file-format compatibility, the `[heat]` extra install, the 3D-bulk-only scope, the potential-flux-only restriction, the `ISIF = 3` caveat, and the `sportran` post-processing path.
 - `tests/test_ml_heat_io.py`: round-trip tests for the writer/reader, parsing of the verbatim VASP example block, and INCAR parsing of `ML_LHEAT`/`ML_HEAT_INTERVAL`.
-- Opt-in `tests/test_mace_heat_flux_smoke.py` and `tests/test_mace_unfolded_regression.py` (gated on `RUN_VASP_MACE_EXAMPLES=1`, `MACE_MODEL_PATH`, and the `[heat]` extra) verifying that the heat-flux backend produces a finite 3-vector and matches a saved reference to ≤1e-8 relative.
+- Opt-in `tests/test_mace_heat_flux_smoke.py` and `tests/test_mace_unfolded_regression.py` (gated on `RUN_VASP_MACE_EXAMPLES=1`, `MACE_MODEL_PATH`, and the `[heat]` extra) verifying that the heat-flux backend produces a finite 3-vector and matches a saved reference flux on a 64-atom PbTe fixture.
+- `tests/test_heat_flux_cell_check.py`: default-suite coverage for `validate_3d_bulk_cell` (height math, partial-pbc rejection, triclinic cells, negative-margin escape hatch).
 
 ### Changed
+- `vasp_mace.md.run_md` gained optional `model_path`, `device`, and `dtype` arguments so the heat-flux backend can load the MACE checkpoint directly (it operates below the ASE calculator interface to access per-atom energies).
 - Updated citation title to "vasp-mace: a VASP-style workflow interface for MACE machine-learning interatomic potentials".
+
+### Notes for maintainers
+- Direct-URL refs in the `[heat]` extra (`mace_unfolded` and `comms` from GitHub) cannot be uploaded to PyPI. Strip the `[heat]` extra from `pyproject.toml` before `python -m build` + PyPI upload, or vendor the deps. Local `pip install -e ".[heat]"` works as-is.
+- `mace-unfolded`'s forward-mode (functorch JVP) path is currently broken with `mace-torch ≥ 0.3.10`. `MACEUnfoldedHeatFluxCalculator` defaults to reverse-mode autodiff; once upstream restores forward-mode compatibility, flipping the default is several times faster per call.
 
 ## [2.2.0] - 2026-05-09
 
@@ -150,7 +160,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.2.0...v2.3.0
+[2.2.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/rgraucrespo/vasp-mace/compare/v1.4.1...v2.0.0
 [1.4.1]: https://github.com/rgraucrespo/vasp-mace/compare/v1.4.0...v1.4.1
