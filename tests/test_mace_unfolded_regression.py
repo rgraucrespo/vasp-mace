@@ -42,9 +42,15 @@ def _compute_reference_flux(model_path: str) -> np.ndarray:
     # saved reference is therefore both model-checkpoint *and*
     # hardware-specific; regenerate it on the same device + dtype where you
     # plan to run the regression.
+    # cell_size_margin=-100 disables the production cell-size check; see
+    # the comment in tests/test_mace_heat_flux_smoke.py for the rationale.
     calc = make_heat_flux_calculator(
         model_path,
-        settings={"device": "auto", "dtype": "auto"},
+        settings={
+            "device": "auto",
+            "dtype": "auto",
+            "cell_size_margin": -100.0,
+        },
     )
     return calc.compute(atoms, velocities)
 

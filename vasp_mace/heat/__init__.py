@@ -14,6 +14,7 @@ Green-Kubo / cepstral analysis.
 """
 
 from .heat_flux import HeatFluxCalculator, make_heat_flux_calculator
+from .mace_unfolded import validate_3d_bulk_cell
 from .ml_heat import MLHeatWriter, read_ml_heat, write_ml_heat
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "MLHeatWriter",
     "make_heat_flux_calculator",
     "read_ml_heat",
+    "validate_3d_bulk_cell",
     "write_ml_heat",
 ]

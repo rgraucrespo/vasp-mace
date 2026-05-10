@@ -11,6 +11,16 @@ solids that omission is usually a small effect; ``flux_type`` is recorded in the
 written. Convective and gauge-fixed flavours are deliberately deferred (see
 ``not_for_release/ml_heat_implementation_instructions.md``).
 
+**Scope of the first release.** Only fully periodic 3D bulk solids in
+sufficiently large supercells are supported. Concretely, every perpendicular
+cell height must exceed
+``2 × num_message_passing_layers × r_cutoff + cell_size_margin`` (default
+margin 2 Å). Slabs, wires, molecules, and small primitive cells are rejected
+with a clear ``ValueError`` rather than silently returning a wrong flux. The
+restriction matches the user's actual workflow — equilibrium MD for
+Green-Kubo thermal conductivity already needs supercells of this size — and
+keeps the unfolded-cell algorithm in the regime where it is well-defined.
+
 References
 ----------
 * M. F. Langer *et al.*, Phys. Rev. B 108, L100302.
@@ -24,7 +34,7 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
-from typing import Any, Sequence, Tuple
+from typing import Any
 
 import numpy as np
 
@@ -36,6 +46,62 @@ from .heat_flux import HeatFluxCalculator, INSTALL_HINT
 # heat flux in the VASP-style ``ML_HEAT`` convention of eV · Å · fs⁻¹. The
 # conversion is therefore J · V · (1 ps / 1000 fs).
 _PS_TO_FS = 1000.0
+
+
+def validate_3d_bulk_cell(
+    atoms: Any,
+    r_cutoff: float,
+    num_message_passing: int,
+    margin: float = 2.0,
+) -> None:
+    """Reject inputs that violate the documented 3D-bulk-solid scope.
+
+    Parameters
+    ----------
+    atoms
+        ASE ``Atoms`` object to validate.
+    r_cutoff
+        MACE radial cutoff in Å (the model's ``r_max`` buffer).
+    num_message_passing
+        Number of MACE message-passing layers (``num_interactions``).
+    margin
+        Safety margin in Å. Each perpendicular cell height must strictly
+        exceed ``2 × num_message_passing × r_cutoff + margin``.
+
+    Raises
+    ------
+    ValueError
+        If ``atoms.pbc`` is not fully periodic, or any perpendicular cell
+        height fails the precondition.
+    """
+    pbc = np.asarray(atoms.pbc, dtype=bool)
+    if not pbc.all():
+        raise ValueError(
+            "ML_LHEAT only supports fully periodic 3D systems "
+            f"(atoms.pbc must be [True, True, True]); got {pbc.tolist()}"
+        )
+
+    cell = np.asarray(atoms.cell.array, dtype=float)
+    volume = float(abs(np.linalg.det(cell)))
+    heights = np.array(
+        [
+            volume / float(np.linalg.norm(np.cross(cell[1], cell[2]))),
+            volume / float(np.linalg.norm(np.cross(cell[2], cell[0]))),
+            volume / float(np.linalg.norm(np.cross(cell[0], cell[1]))),
+        ]
+    )
+    bound = 2.0 * num_message_passing * r_cutoff + margin
+    if heights.min() <= bound:
+        raise ValueError(
+            "Heat-flux calculation requires every perpendicular cell "
+            "height to exceed "
+            f"2 × n_layers × r_cutoff + margin = "
+            f"2 × {num_message_passing} × {r_cutoff:.3f} Å + "
+            f"{margin:.3f} Å = {bound:.3f} Å; got "
+            f"heights = {heights.tolist()} Å. Use a larger supercell "
+            "(this release deliberately rejects slabs, wires, "
+            "molecules, and small primitive cells)."
+        )
 
 
 @contextlib.contextmanager
@@ -79,9 +145,14 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         Floating-point dtype. Defaults to ``"float64"`` for heat-flux work;
         ``"float32"`` is allowed but discouraged because of numerical noise in
         the autograd derivatives.
-    pbc
-        Periodic-boundary flags forwarded to the unfolder. Stage 2 supports
-        only fully periodic systems; non-periodic configurations are rejected.
+    cell_size_margin
+        Safety margin (in Å) added to the perpendicular-cell-height
+        precondition checked at every :meth:`compute` call. Each height must
+        strictly exceed ``2 × num_message_passing_layers × r_cutoff +
+        cell_size_margin`` or :meth:`compute` raises ``ValueError``. The
+        default of ``2.0`` Å is generous and matches the documented scope
+        (3D bulk solids in supercells big enough for Green-Kubo). Negative
+        values relax the bound and are intended only for unit tests.
     forward
         Whether to use forward-mode autodiff inside ``mace-unfolded``.
         Defaults to ``False`` (reverse-mode, three ``grad`` passes per call)
@@ -101,8 +172,7 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
     ImportError
         If ``mace-unfolded`` is not installed.
     ValueError
-        If ``flux_type`` is not ``"potential"`` or ``pbc`` is not fully
-        periodic.
+        If ``flux_type`` is not ``"potential"``.
     """
 
     def __init__(
@@ -111,19 +181,13 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         flux_type: str = "potential",
         device: str = "auto",
         dtype: str = "float64",
-        pbc: Sequence[bool] = (True, True, True),
+        cell_size_margin: float = 2.0,
         forward: bool = False,
     ) -> None:
         if flux_type != "potential":
             raise ValueError(
                 f"flux_type={flux_type!r} is not supported; only 'potential' "
                 "is implemented in this release"
-            )
-        pbc_tuple: Tuple[bool, bool, bool] = tuple(bool(p) for p in pbc)  # type: ignore[assignment]
-        if pbc_tuple != (True, True, True):
-            raise ValueError(
-                f"pbc={pbc_tuple} is not supported; stage 2 of vasp-mace's "
-                "heat-flux backend only handles fully periodic systems"
             )
 
         try:
@@ -143,19 +207,26 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         # so it can read per-atom energies from the unfolded graph.
         torch_model = calc.models[0]
 
+        # Read the model's interaction radius and message-passing depth so
+        # ``compute()`` can validate the cell size on every call.
+        r_cutoff = float(torch_model.get_buffer("r_max").cpu())
+        num_message_passing = int(torch_model.get_buffer("num_interactions").cpu())
+
         self._unf = UnfoldedHeatFluxCalculator(
             torch_model,
             device=resolved_device,
             dtype=resolved_dtype,
             forward=forward,
-            pbc=list(pbc_tuple),
+            pbc=[True, True, True],
         )
         self._device = resolved_device
         self._dtype = resolved_dtype
-        self._pbc = pbc_tuple
         self._flux_type = flux_type
         self._model_path = model_path
         self._forward = forward
+        self._r_cutoff = r_cutoff
+        self._num_message_passing = num_message_passing
+        self._cell_size_margin = float(cell_size_margin)
 
     @property
     def device(self) -> str:
@@ -164,10 +235,6 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
     @property
     def dtype(self) -> str:
         return self._dtype
-
-    @property
-    def pbc(self) -> Tuple[bool, bool, bool]:
-        return self._pbc
 
     @property
     def flux_type(self) -> str:
@@ -181,13 +248,30 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
     def model_path(self) -> str:
         return self._model_path
 
+    @property
+    def r_cutoff(self) -> float:
+        """MACE radial cutoff (Å) read from the model's ``r_max`` buffer."""
+        return self._r_cutoff
+
+    @property
+    def num_message_passing(self) -> int:
+        """Number of MACE message-passing layers (``num_interactions``)."""
+        return self._num_message_passing
+
+    @property
+    def cell_size_margin(self) -> float:
+        """Safety margin (Å) on top of ``2 × n_layers × r_cutoff``."""
+        return self._cell_size_margin
+
     def compute(self, atoms: Any, velocities: np.ndarray) -> np.ndarray:
         """Return the potential heat flux for one MD frame.
 
         Parameters
         ----------
         atoms
-            ASE ``Atoms`` object for the cell.
+            ASE ``Atoms`` object for the cell. Must be fully periodic and
+            satisfy the perpendicular-cell-height precondition (see
+            ``cell_size_margin``).
         velocities
             Velocity array in ASE units (Å × √(eV/u)), shape
             ``(len(atoms), 3)``. The supplied array is what the upstream
@@ -203,6 +287,13 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
             raise ValueError(
                 f"velocities must have shape ({len(atoms)}, 3); got {v.shape}"
             )
+
+        validate_3d_bulk_cell(
+            atoms,
+            self._r_cutoff,
+            self._num_message_passing,
+            self._cell_size_margin,
+        )
 
         # Don't mutate the caller's atoms — mace-unfolded reads velocities via
         # ``atoms.get_velocities()`` internally.

@@ -52,9 +52,17 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
         # dtype="auto" → float32 on CUDA/MPS (so the 216-atom × 27-replica
         # unfolded graph fits on a 16 GB GPU), float64 on CPU. The wrapper
         # always returns the flux as np.float64 regardless of internal dtype.
+        # cell_size_margin=-100 disables the production cell-size check
+        # (3×3×3 MgO satisfies mace-unfolded's L > R requirement but not
+        # the stricter L > 2R + 2 Å vasp-mace bound). Production callers
+        # never touch this; only unit tests do.
         calc = make_heat_flux_calculator(
             self.model_path,
-            settings={"device": "auto", "dtype": "auto"},
+            settings={
+                "device": "auto",
+                "dtype": "auto",
+                "cell_size_margin": -100.0,
+            },
         )
         qxyz = calc.compute(atoms, velocities)
 
