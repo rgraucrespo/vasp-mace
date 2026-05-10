@@ -380,9 +380,20 @@ def run_md(
             )
         from .heat import MLHeatWriter, make_heat_flux_calculator
 
+        # Pin the heat-flux backend to float64 even when the main calculator
+        # runs at float32 on a GPU: mace-unfolded has a known float32
+        # dtype-mismatch bug (positions stay float64 inside `prepare_graph`
+        # even after `set_default_dtype("float32")`), so float32 raises
+        # `expected scalar type Float but found Double` mid-run. Float64 is
+        # also what the stage-2 regression test relies on.
+        if dtype not in ("auto", "float64"):
+            print(
+                f"[note] ML_LHEAT: heat-flux backend forced to float64 "
+                f"(main calculator stays at --dtype={dtype})."
+            )
         heat_calc = make_heat_flux_calculator(
             model_path,
-            settings={"device": device, "dtype": dtype},
+            settings={"device": device, "dtype": "float64"},
         )
         heat_writer = MLHeatWriter("ML_HEAT")
         _write_ml_heat_json(
