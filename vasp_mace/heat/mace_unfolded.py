@@ -303,7 +303,13 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         with _suppress_unfolder_artefact_files():
             results = self._unf.calculate(atoms_for_calc)
 
-        flux = np.asarray(results["heat_flux"], dtype=float).reshape(-1)
+        # mace-unfolded returns ``heat_flux`` as a torch tensor on the
+        # compute device (CPU or CUDA). Pull it back to host before NumPy
+        # conversion; ``np.asarray`` cannot ingest a CUDA tensor directly.
+        flux_raw = results["heat_flux"]
+        if hasattr(flux_raw, "detach"):
+            flux_raw = flux_raw.detach().cpu().numpy()
+        flux = np.asarray(flux_raw, dtype=float).reshape(-1)
         if flux.size != 3:
             raise RuntimeError(
                 f"mace-unfolded returned heat flux of length {flux.size}; "
