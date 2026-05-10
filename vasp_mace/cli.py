@@ -101,8 +101,26 @@ def _run() -> None:
 
     # Load calculator; IVDW > 0 enables empirical dispersion (DFT-D3)
     dispersion = cfg.IVDW > 0
+
+    # ML_LHEAT requires a float64 heat-flux backend (mace-unfolded has a
+    # float32 dtype-mismatch bug). Constructing two MACECalculators with
+    # different dtypes in the same process pollutes torch's global default
+    # dtype and the integrator's float32 batch ends up touching the
+    # float64 unfolded graph mid-run. Avoid that by forcing the main MD
+    # calculator to float64 too whenever ML_LHEAT is on.
+    main_dtype = args.dtype
+    if cfg.ML_LHEAT and cfg.IBRION == 0 and args.dtype != "float64":
+        if args.dtype != "auto":
+            print(
+                f"[note] ML_LHEAT: forcing main calculator to float64 "
+                f"(--dtype={args.dtype} ignored). mace-unfolded has a "
+                f"float32 dtype bug, and mixing float32/float64 calculators "
+                f"in the same process is unreliable."
+            )
+        main_dtype = "float64"
+
     calc, device, dtype = load_calc(
-        args.model, device=args.device, dtype=args.dtype, dispersion=dispersion
+        args.model, device=args.device, dtype=main_dtype, dispersion=dispersion
     )
     atoms.calc = calc
 
