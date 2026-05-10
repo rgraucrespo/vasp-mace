@@ -84,8 +84,12 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         only fully periodic systems; non-periodic configurations are rejected.
     forward
         Whether to use forward-mode autodiff inside ``mace-unfolded``. The
-        reverse-mode default (``False``) uses less memory and is the path the
-        upstream README advertises for routine heat-flux evaluation.
+        default (``True``) matches the upstream production script
+        (``perform_mace_green_kubo.py``) and runs one forward-mode JVP per
+        call, which is several times faster than the three reverse-mode
+        ``grad`` passes used when ``forward=False``. Reverse mode uses less
+        peak memory but is essentially unworkable for per-MD-step heat-flux
+        evaluation on the kinds of cells the unfolder requires.
 
     Raises
     ------
@@ -103,7 +107,7 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         device: str = "auto",
         dtype: str = "float64",
         pbc: Sequence[bool] = (True, True, True),
-        forward: bool = False,
+        forward: bool = True,
     ) -> None:
         if flux_type != "potential":
             raise ValueError(
