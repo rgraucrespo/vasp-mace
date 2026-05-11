@@ -1,11 +1,13 @@
 """Heat-flux file I/O and calculator interface for vasp-mace.
 
-This subpackage handles the VASP-compatible ``ML_HEAT`` output file that vasp-mace
-writes during MACE MD when ``ML_LHEAT = .TRUE.``, and the backend-independent
-heat-flux calculator interface used to compute the per-step flux. The default
+This subpackage handles the VASP-compatible ``ML_HEAT`` output file that
+vasp-mace writes during fixed-cell NVE MACE MD when ``ML_LHEAT = .TRUE.``,
+and the backend-independent heat-flux calculator interface used to compute
+the per-step flux. The default
 backend (:class:`vasp_mace.heat.mace_unfolded.MACEUnfoldedHeatFluxCalculator`)
 wraps `mace-unfolded <https://github.com/pulgon-project/mace-unfolded>`_ and is
-opt-in via ``pip install vasp-mace[heat]``.
+opt-in via the repository's ``requirements-heat.txt`` file because the backend
+dependencies are currently GitHub-only.
 
 Post-processing of ``ML_HEAT`` into thermal conductivity is intentionally out
 of scope; pass the file to ``sportran``

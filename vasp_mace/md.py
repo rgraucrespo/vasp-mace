@@ -30,6 +30,14 @@ from ase.md.nose_hoover_chain import NoseHooverChainNVT
 from ase.io.trajectory import Trajectory
 from ase.units import fs as ASE_FS, kB, GPa
 
+from .types_ import IncarConfig, MDRecord
+from .io_vasp import (
+    write_xdatcar_header,
+    append_xdatcar_frame,
+    write_md_outcar_header,
+    append_md_outcar_step,
+)
+
 
 class LangevinNPT(MolecularDynamics):
     """
@@ -87,7 +95,6 @@ class LangevinNPT(MolecularDynamics):
         """
         atoms = self.atoms
         dt = self.dt
-        N = len(atoms)
         m = atoms.get_masses()[:, np.newaxis]
         v = atoms.get_velocities()
         if forces is None:
@@ -146,16 +153,6 @@ class LangevinNPT(MolecularDynamics):
         atoms.set_velocities(v)
         return f
 
-
-from .types_ import IncarConfig, MDRecord
-from .io_vasp import (
-    write_xdatcar_header,
-    append_xdatcar_frame,
-    write_md_outcar_header,
-    append_md_outcar_step,
-)
-
-
 def _per_atom_friction(atoms: Atoms, langevin_gamma: np.ndarray) -> np.ndarray:
     """Return per-atom friction (ps⁻¹, shape (N,)) from LANGEVIN_GAMMA.
 
@@ -187,6 +184,31 @@ def _per_atom_friction(atoms: Atoms, langevin_gamma: np.ndarray) -> np.ndarray:
 ASE_OUT_DIR = "ase_files"
 
 
+def _validate_ml_lheat_md_config(cfg: IncarConfig) -> None:
+    """Validate ML_LHEAT constraints before creating MD output files."""
+    if not cfg.ML_LHEAT:
+        return
+    if cfg.IVDW > 0:
+        raise ValueError(
+            "ML_LHEAT=.TRUE. is not supported with IVDW > 0. The current "
+            "heat-flux backend computes only the MACE potential contribution, "
+            "so adding D3 dispersion to the MD forces would make ML_HEAT "
+            "inconsistent. Disable IVDW for heat-flux production, or run the "
+            "dispersion-corrected MD without ML_LHEAT."
+        )
+    if not (
+        cfg.MDALGO == 1
+        and abs(float(cfg.ANDERSEN_PROB)) <= 1.0e-15
+        and cfg.ISIF == 2
+    ):
+        raise ValueError(
+            "ML_LHEAT=.TRUE. is restricted to fixed-cell NVE production MD. "
+            "Use IBRION=0, MDALGO=1, ANDERSEN_PROB=0.0, and ISIF=2. "
+            "Run NVT/NPT equilibration first with ML_LHEAT=.FALSE., then "
+            "start a separate NVE heat-flux run."
+        )
+
+
 def _write_ml_heat_json(
     path: str,
     atoms: Atoms,
@@ -216,6 +238,7 @@ def _write_ml_heat_json(
         "model_path": model_path,
         "dtype": getattr(heat_calc, "dtype", None),
         "device": getattr(heat_calc, "device", None),
+        "shared_model": bool(getattr(heat_calc, "uses_shared_model", False)),
     }
     with open(path, "w") as fh:
         json.dump(payload, fh, indent=2)
@@ -264,6 +287,7 @@ def run_md(
     """
     atoms.calc = calc
     N = len(atoms)
+    _validate_ml_lheat_md_config(cfg)
 
     # Resolve TEEND: -1 means same as TEBEG (no ramp)
     T_start = cfg.TEBEG
@@ -391,10 +415,15 @@ def run_md(
                 f"[note] ML_LHEAT: heat-flux backend forced to float64 "
                 f"(main calculator stays at --dtype={dtype})."
             )
-        heat_calc = make_heat_flux_calculator(
-            model_path,
-            settings={"device": device, "dtype": "float64"},
-        )
+        raw_torch_model = None
+        calc_models = getattr(calc, "models", None)
+        if calc_models:
+            raw_torch_model = calc_models[0]
+
+        heat_settings = {"device": device, "dtype": "float64"}
+        if raw_torch_model is not None:
+            heat_settings["torch_model"] = raw_torch_model
+        heat_calc = make_heat_flux_calculator(model_path, settings=heat_settings)
         validate_3d_bulk_cell(
             atoms,
             heat_calc.r_cutoff,
@@ -475,5 +504,7 @@ def run_md(
         traj.close()
         if heat_writer is not None:
             heat_writer.close()
+        if heat_calc is not None and hasattr(heat_calc, "close"):
+            heat_calc.close()
 
     return records

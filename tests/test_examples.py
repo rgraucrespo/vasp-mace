@@ -199,13 +199,13 @@ SMOKE_CASES = (
         example_dir="example10_heat_flux",
         incar="""
             IBRION           = 0
-            MDALGO           = 3
+            MDALGO           = 1
+            ANDERSEN_PROB    = 0.0
             ISIF             = 2
             NSW              = 1
             TEBEG            = 300
             POTIM            = 1.0
             NBLOCK           = 1
-            LANGEVIN_GAMMA   = 10.0 20.0
             ML_LHEAT         = .TRUE.
             ML_HEAT_INTERVAL = 1
         """,

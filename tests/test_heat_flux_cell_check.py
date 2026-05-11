@@ -76,7 +76,7 @@ class CellPreconditionTests(unittest.TestCase):
         # Triclinic cell where |a|, |b|, |c| are all > 26 Å but the
         # perpendicular height to one face is much smaller. The validator
         # must use the height, not the vector length.
-        a, b, c = 30.0, 30.0, 30.0
+        a, b = 30.0, 30.0
         # Skew c heavily into the xy plane so its perpendicular component
         # along z is small.
         cell = np.array(

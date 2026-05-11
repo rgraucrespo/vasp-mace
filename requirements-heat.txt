@@ -1,0 +1,7 @@
+# Optional ML_LHEAT backend dependencies.
+#
+# These packages are GitHub-only at the moment, so they intentionally live
+# outside pyproject.toml: public PyPI uploads should not include direct URL
+# dependencies in package metadata.
+git+https://github.com/sirmarcel/comms.git
+git+https://github.com/pulgon-project/mace-unfolded.git

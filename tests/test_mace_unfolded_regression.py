@@ -68,7 +68,7 @@ class MACEUnfoldedRegressionTests(unittest.TestCase):
         if importlib.util.find_spec("mace_unfolded") is None:
             self.skipTest(
                 "mace_unfolded not installed; install with "
-                "`pip install vasp-mace[heat]`"
+                "`pip install -r requirements-heat.txt` from a source checkout"
             )
         if not REFERENCE_PATH.is_file():
             self.skipTest(
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         if importlib.util.find_spec("mace_unfolded") is None:
             sys.exit(
                 "mace_unfolded is not installed; "
-                "`pip install vasp-mace[heat]` first."
+                "`pip install -r requirements-heat.txt` first."
             )
         _create_reference(model)
     else:

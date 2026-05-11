@@ -17,6 +17,42 @@ jobs:
         run: pip install build
       - name: Build wheel and sdist
         run: python -m build
+      - name: Reject direct URL dependencies
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          import tarfile
+          import zipfile
+
+          bad = []
+
+          def check(label, text):
+              for line in text.splitlines():
+                  if not line.startswith("Requires-Dist:"):
+                      continue
+                  if " @ " in line or "://" in line or "git+" in line:
+                      bad.append(f"{label}: {line}")
+
+          for artifact in Path("dist").glob("*"):
+              if artifact.suffix == ".whl":
+                  with zipfile.ZipFile(artifact) as zf:
+                      for name in zf.namelist():
+                          if name.endswith(".dist-info/METADATA"):
+                              check(str(artifact), zf.read(name).decode())
+              elif artifact.name.endswith(".tar.gz"):
+                  with tarfile.open(artifact) as tf:
+                      for member in tf.getmembers():
+                          if member.name.endswith("PKG-INFO"):
+                              fh = tf.extractfile(member)
+                              if fh is not None:
+                                  check(str(artifact), fh.read().decode())
+
+          if bad:
+              print("Direct URL dependencies are not allowed in PyPI metadata:")
+              print("\n".join(bad))
+              sys.exit(1)
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: dist

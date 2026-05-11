@@ -24,11 +24,11 @@ class HeatFluxCalculator:
         raise NotImplementedError
 
 
-# Exact wording requested by the implementation spec — keep it byte-stable so
-# downstream tooling can grep for it.
 INSTALL_HINT = (
-    "ML_LHEAT requires the optional heat-flux dependencies. "
-    "Install with: pip install vasp-mace[heat]"
+    "ML_LHEAT requires the optional heat-flux dependencies: comms and "
+    "mace-unfolded. Install with: pip install "
+    "git+https://github.com/sirmarcel/comms.git "
+    "git+https://github.com/pulgon-project/mace-unfolded.git"
 )
 
 
@@ -49,6 +49,8 @@ def make_heat_flux_calculator(
         - ``device``, ``dtype`` — see :func:`vasp_mace.mace_loader.load_calc`.
         - ``flux_type`` — currently only ``"potential"`` is supported.
         - ``forward`` — forward- vs reverse-mode autodiff in mace-unfolded.
+        - ``torch_model`` — optional already-loaded raw MACE torch model,
+          avoiding a second checkpoint load.
 
         Unknown keys are forwarded to the chosen backend, which raises
         ``TypeError`` on unrecognised arguments.

@@ -1,4 +1,26 @@
-import os, sys, warnings, logging, time
+import argparse
+import logging
+import os
+import sys
+import time
+import warnings
+
+import numpy as np
+
+from .incar import parse_incar
+from .io_vasp import (
+    read_poscar,
+    write_oszicar,
+    write_outcar,
+    write_outcar_tail,
+    write_contcar,
+    write_relax_vasprun_xml,
+    write_single_vasprun_xml,
+)
+from .logging_utils import StepRecord
+from .mace_loader import load_calc
+from .relax import run_relax, EV_A3_TO_KBAR
+from .md import run_md, _validate_ml_lheat_md_config
 
 os.environ.pop("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", None)
 warnings.filterwarnings(
@@ -12,23 +34,17 @@ warnings.filterwarnings(
 for name in ("cuequivariance", "cuequivariance_torch", "e3nn", "mace"):
     logging.getLogger(name).setLevel(logging.ERROR)
 
-import argparse
-import numpy as np
-from .incar import parse_incar
-from .io_vasp import (
-    read_poscar,
-    write_oszicar,
-    write_outcar,
-    write_outcar_like,
-    write_outcar_tail,
-    write_contcar,
-    write_relax_vasprun_xml,
-    write_single_vasprun_xml,
-)
-from .logging_utils import StepRecord
-from .mace_loader import load_calc
-from .relax import run_relax, EV_A3_TO_KBAR
-from .md import run_md
+
+def _validate_ml_lheat_config(cfg) -> None:
+    """Validate the supported ML_LHEAT production ensemble.
+
+    Heat-flux output is intended for Green-Kubo production runs. Equilibration
+    should be done separately under NVT/NPT with ``ML_LHEAT = .FALSE.``.
+    """
+    if not cfg.ML_LHEAT or cfg.IBRION != 0:
+        return
+
+    _validate_ml_lheat_md_config(cfg)
 
 
 def main() -> None:
@@ -71,6 +87,8 @@ def _run() -> None:
             f"[warn] ML_LHEAT=.TRUE. is only meaningful for MD (IBRION=0); "
             f"IBRION={cfg.IBRION} detected. Ignoring ML_LHEAT."
         )
+
+    _validate_ml_lheat_config(cfg)
 
     # --- IMAGES > 0: NEB mode -----------------------------------------------
     # Must be checked before read_poscar: NEB has no top-level POSCAR;
@@ -129,7 +147,7 @@ def _run() -> None:
         if "POTIM" not in cfg.raw:
             cfg.POTIM = 0.015
             print(
-                f"[info] POTIM not set; using VASP default 0.015 Å for phonon displacement."
+                "[info] POTIM not set; using VASP default 0.015 Å for phonon displacement."
             )
         print(
             f"[info] Model={args.model}, device={device}, dtype={dtype}, "
@@ -156,13 +174,6 @@ def _run() -> None:
 
     # --- IBRION=0: MD mode ---
     if cfg.IBRION == 0:
-        if cfg.ML_LHEAT and cfg.ISIF == 3:
-            print(
-                "[note] ML_LHEAT=.TRUE. combined with ISIF=3 (NPT): the cell "
-                "volume drifts during the run, so the volume_A3 recorded in "
-                "ase_files/ML_HEAT.json reflects the initial cell only."
-            )
-
         extra_info = ""
         if cfg.MDALGO == 1:
             extra_info = f", ANDERSEN_PROB={cfg.ANDERSEN_PROB}"

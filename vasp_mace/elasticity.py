@@ -136,8 +136,8 @@ def run_elastic(
 
 
 def _print_elastic_summary(C, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h):
-    header = "  ".join(f"{l:>8}" for l in _ASE_LABELS)
-    print(f"\n Elastic tensor (GPa) — ASE Voigt ordering: xx yy zz yz xz xy")
+    header = "  ".join(f"{label:>8}" for label in _ASE_LABELS)
+    print("\n Elastic tensor (GPa) — ASE Voigt ordering: xx yy zz yz xz xy")
     print(f" {'':8s}  {header}")
     for i, row_label in enumerate(_ASE_LABELS):
         row = "  ".join(f"{C[i,j]:8.2f}" for j in range(6))
@@ -164,7 +164,9 @@ def _append_elastic_outcar(outcar_path, C_GPa, K_v, G_v, K_r, G_r, K_h, G_h, E_h
         f.write("\n")
         f.write(" TOTAL ELASTIC MODULI (kBar)\n")
         f.write(
-            f" Direction {'':4s}" + "".join(f"{l:>12s}" for l in _VASP_LABELS) + "\n"
+            f" Direction {'':4s}"
+            + "".join(f"{label:>12s}" for label in _VASP_LABELS)
+            + "\n"
         )
         f.write(sep + "\n")
         for i, rl in enumerate(_VASP_LABELS):

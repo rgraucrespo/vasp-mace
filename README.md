@@ -26,7 +26,7 @@ See [NOTICE.md](NOTICE.md) for the repository-level notice.
 - **Single-point** energy, force, and stress evaluation (`NSW = 0`)
 - **Geometry relaxation** of atomic positions and/or unit cell, driven by MACE potentials
 - **Molecular dynamics** (NVE, NVT Langevin/Nosé-Hoover/Andersen, NPT Langevin) with XDATCAR output
-- **Heat flux for Green-Kubo** (`ML_LHEAT = .TRUE.`): per-step VASP-compatible `ML_HEAT` from MACE MD via the unfolded-cell autograd backend (`mace-unfolded`); for 3D bulk solids only. Post-process with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for thermal conductivity
+- **Heat flux for Green-Kubo** (`ML_LHEAT = .TRUE.`): per-step VASP-compatible `ML_HEAT` from fixed-cell NVE MACE MD via the unfolded-cell autograd backend (`mace-unfolded`); for 3D bulk solids only. Post-process with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for thermal conductivity
 - **Nudged Elastic Band (NEB)**: minimum-energy path and transition-state search via ASE's MDMin optimizer; optional climbing-image NEB (`LCLIMB = .TRUE.`, VTST convention)
 - **Phonon calculations**: Γ-point force constants and frequencies via finite differences (`IBRION = 5`); symmetry-reduced displacements via phonopy (`IBRION = 6`), with VASP-compatible `DYNMAT` and `OUTCAR` output
 - **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill polycrystalline averages (K, G, E, ν) via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
@@ -63,6 +63,23 @@ pip install vasp-mace
 ```
 
 > **DFT-D3 dispersion** (`IVDW` tag) requires `dftd4`, which is best installed via conda before `pip install vasp-mace`. If you do not need dispersion corrections, the conda step can be skipped.
+
+### Optional heat-flux backend
+
+`ML_LHEAT = .TRUE.` requires the GitHub-only `mace-unfolded` backend and its `comms` runtime dependency. Install them after installing `vasp-mace`:
+
+```bash
+pip install git+https://github.com/sirmarcel/comms.git
+pip install git+https://github.com/pulgon-project/mace-unfolded.git
+```
+
+From a source checkout, the same optional dependencies are listed in `requirements-heat.txt`:
+
+```bash
+pip install -r requirements-heat.txt
+```
+
+There is deliberately no `vasp-mace[heat]` extra on PyPI because public package metadata should not contain direct Git URL dependencies.
 
 ### Development install (includes examples)
 
@@ -243,7 +260,7 @@ These expressions are valid for all crystal systems (cubic to triclinic).
 | `LANGEVIN_GAMMA_L` | `10.0` | Friction coefficient (ps⁻¹) for the lattice in Langevin NPT (`MDALGO = 3, ISIF = 3`) |
 | `PMASS` | `0` | Piston mass (amu) for Langevin NPT (`MDALGO = 3, ISIF = 3`). `0` = automatic (`N × 10000` amu) |
 | `SMASS` | `-3.0` | Nose-Hoover mass or Langevin friction. Values > 0 are used if `LANGEVIN_GAMMA` is missing |
-| `ML_LHEAT` | `.FALSE.` | Write a VASP-compatible `ML_HEAT` file (and `ML_HEAT.json` sidecar) during MD. See [Heat flux (ML_HEAT)](#heat-flux-ml_heat) |
+| `ML_LHEAT` | `.FALSE.` | Write a VASP-compatible `ML_HEAT` file (and `ML_HEAT.json` sidecar) during fixed-cell NVE production MD. See [Heat flux (ML_HEAT)](#heat-flux-ml_heat) |
 | `ML_HEAT_INTERVAL` | `1` | `vasp-mace` extension: write `ML_HEAT` every `ML_HEAT_INTERVAL` MD steps. `1` matches VASP's per-step cadence |
 
 #### NVE — microcanonical ensemble
@@ -321,31 +338,25 @@ NBLOCK           = 10
 
 ### Heat flux (ML_HEAT)
 
-Setting `ML_LHEAT = .TRUE.` in INCAR enables per-step heat-flux output during a MACE MD run. `vasp-mace` writes a VASP-compatible `ML_HEAT` file in the run directory (one `NSTEP=… QXYZ= …` line per recorded step, units `eV·Å·fs⁻¹`), plus an `ase_files/ML_HEAT.json` sidecar describing the timestep, write interval, target temperature, cell volume at MD start, backend, model, dtype, and device. `ML_HEAT` itself is byte-compatible with VASP's `ML_LHEAT` output, so downstream analysis tools that read VASP `ML_HEAT` files work unchanged; the JSON sidecar lives under `ase_files/` because VASP does not produce it.
+Setting `ML_LHEAT = .TRUE.` in INCAR enables per-step heat-flux output during a MACE MD run. For Green-Kubo production, `vasp-mace` deliberately allows this only for fixed-cell NVE (`IBRION = 0`, `MDALGO = 1`, `ANDERSEN_PROB = 0.0`, `ISIF = 2`). Use NVT or NPT first for equilibration with `ML_LHEAT = .FALSE.`, then restart from the equilibrated structure for the NVE heat-flux run. `vasp-mace` writes a VASP-compatible `ML_HEAT` file in the run directory (one `NSTEP=… QXYZ= …` line per recorded step, units `eV·Å·fs⁻¹`), plus an `ase_files/ML_HEAT.json` sidecar describing the timestep, write interval, target temperature, cell volume, backend, model, dtype, and device. `ML_HEAT` itself is byte-compatible with VASP's `ML_LHEAT` output, so downstream analysis tools that read VASP `ML_HEAT` files work unchanged; the JSON sidecar lives under `ase_files/` because VASP does not produce it.
 
-**Backend.** `vasp-mace` does not implement the heat flux directly. It wraps [`mace-unfolded`](https://github.com/pulgon-project/mace-unfolded) (Wieser *et al.*, *J. Chem. Theory Comput.* **22**, 513 (2026)), which evaluates the autograd-based potential heat flux on an unfolded nonperiodic environment. Install the optional dependency:
-
-```bash
-pip install -e ".[heat]"
-```
-
-The `[heat]` extra installs `mace-unfolded` and its `comms` runtime dependency directly from GitHub (neither is published on PyPI). PyPI installs of `vasp-mace` therefore cannot resolve the `[heat]` extra automatically; clone the repository for that path.
+**Backend.** `vasp-mace` does not implement the heat flux directly. It wraps [`mace-unfolded`](https://github.com/pulgon-project/mace-unfolded) (Wieser *et al.*, *J. Chem. Theory Comput.* **22**, 513 (2026)), which evaluates the autograd-based potential heat flux on an unfolded nonperiodic environment. Install the optional backend dependencies as described in [Optional heat-flux backend](#optional-heat-flux-backend) before running with `ML_LHEAT = .TRUE.`.
 
 **Scope of the first release.**
 
 - Only the **potential** flux is computed. Convective and gauge-fixed flavours are deferred (Wieser *et al.*, lines 498–504 of the implementation spec); the file format records `flux_type: "potential"` so downstream tools know what was written.
+- Only fixed-cell NVE production MD is accepted. Thermostatted/barostatted runs (`MDALGO = 2`, `MDALGO = 3`, or `ANDERSEN_PROB > 0`) are rejected when `ML_LHEAT = .TRUE.`. Run those ensembles only for equilibration.
+- `IVDW > 0` is rejected with `ML_LHEAT = .TRUE.`. The current heat-flux backend sees only the MACE model, so a dispersion-corrected MD trajectory would otherwise be paired with an inconsistent MACE-only heat flux.
 - Only fully periodic 3D bulk solids are accepted. Each perpendicular cell height must strictly exceed `2 × num_message_passing_layers × r_cutoff + 2 Å` (26 Å for MACE-MP-0). Slabs, wires, molecules, and small primitive cells are rejected with a clear `ValueError` rather than silently returning a wrong flux. This restriction matches the typical Green-Kubo workflow for thermal conductivity, which already needs supercells of this size for convergence.
 - `mace-unfolded`'s forward-mode autodiff path is currently incompatible with `mace-torch ≥ 0.3.10` (a `prepare_graph` call sets `requires_grad_(True)` inside `model.forward`, which `functorch.jvp` forbids). The default backend setting is reverse-mode, which is several times slower per call but works on a current MACE checkpoint. On a CUDA GPU, reverse-mode is fast enough for production; on CPU it can take many minutes per call.
-
-**Combining with `ISIF = 3` (NPT).** When `ML_LHEAT = .TRUE.` is combined with NPT (`MDALGO = 3, ISIF = 3`), the cell volume drifts during the run. The `volume_A3` field in `ase_files/ML_HEAT.json` records the *initial* cell volume only; downstream tools should re-derive the time-resolved volume from the trajectory if needed. `vasp-mace` prints a `[note]` reminding the user when this combination is selected.
 
 **Post-processing.** `vasp-mace` itself does not compute thermal conductivity. Pass the resulting `ML_HEAT` to [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for Green-Kubo / cepstral analysis. The `ase_files/ML_HEAT.json` sidecar carries the metadata `sportran` needs (timestep, units, temperature, volume, dtype).
 
 ```
 IBRION         = 0
-MDALGO         = 3
+MDALGO         = 1
+ANDERSEN_PROB  = 0.0
 ISIF           = 2
-LANGEVIN_GAMMA = 10.0 20.0
 NSW            = 10000
 TEBEG          = 300
 POTIM          = 1.0
@@ -487,7 +498,7 @@ Ready-to-run examples are provided in the `examples/` directory. Copy an example
 | `example07_PbTe_MD/` | PbTe (rock salt, 512 atoms) | Sequential NVT → NPT Langevin MD; per-species `LANGEVIN_GAMMA` and explicit `PMASS` |
 | `example08_PbTe_phonons/` | PbTe (rock salt, 8 atoms) | Phonon calculation with symmetry reduction (`IBRION = 6`, `NFREE = 2`). Requires `pip install phonopy` |
 | `example09_MgO_elastic/` | MgO (rock salt, 8 atoms) | Phonons + elastic tensor (`IBRION = 6`, `ISIF = 3`): full 6×6 C_ij with Voigt/Reuss/Hill averages appended to OUTCAR |
-| `example10_heat_flux/` | PbTe (rock salt, 4×4×4, 512 atoms) | NVT Langevin MD with `ML_LHEAT = .TRUE.`: writes a VASP-compatible `ML_HEAT` plus an `ML_HEAT.json` sidecar for downstream Green-Kubo analysis with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898). Requires `pip install -e ".[heat]"` |
+| `example10_heat_flux/` | PbTe (rock salt, 4×4×4, 512 atoms) | NVT equilibration input plus NVE production MD with `ML_LHEAT = .TRUE.`: writes a VASP-compatible `ML_HEAT` plus an `ML_HEAT.json` sidecar for downstream Green-Kubo analysis with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898). Requires the optional heat-flux backend |
 
 ### example01 — MgO variable-cell relaxation
 
@@ -630,13 +641,13 @@ Requires `phonopy`: `pip install phonopy` or `pip install vasp-mace[phonons]`.
 
 ### example10 — PbTe heat-flux MD for Green-Kubo
 
-4×4×4 PbTe rock-salt supercell at `a = 6.55 Å` (512 atoms; perpendicular heights 26.2 Å, just above the 26 Å bound enforced by the heat-flux backend for MACE-MP-0). NVT Langevin MD with `ML_LHEAT = .TRUE.` produces an `ML_HEAT` file in the run directory (one `NSTEP=… QXYZ= …` line per MD step, units `eV·Å·fs⁻¹`) and an `ase_files/ML_HEAT.json` sidecar with the metadata that downstream Green-Kubo tools need.
+4×4×4 PbTe rock-salt supercell at `a = 6.55 Å` (512 atoms; perpendicular heights 26.2 Å, just above the 26 Å bound enforced by the heat-flux backend for MACE-MP-0). The example is split into NVT equilibration (`INCAR_NVT_EQUIL`, `ML_LHEAT = .FALSE.`) followed by fixed-cell NVE production (`INCAR`, `ML_LHEAT = .TRUE.`). The NVE run produces an `ML_HEAT` file in the run directory (one `NSTEP=… QXYZ= …` line per MD step, units `eV·Å·fs⁻¹`) and an `ase_files/ML_HEAT.json` sidecar with the metadata that downstream Green-Kubo tools need.
 
 ```
 IBRION           = 0
-MDALGO           = 3
+MDALGO           = 1
+ANDERSEN_PROB    = 0.0
 ISIF             = 2
-LANGEVIN_GAMMA   = 10.0 20.0
 NSW              = 100      # production: 10000+
 TEBEG            = 300
 POTIM            = 1.0
@@ -645,7 +656,7 @@ ML_LHEAT         = .TRUE.
 ML_HEAT_INTERVAL = 1
 ```
 
-Requires the heat-flux backend: clone the repo, then `pip install -e ".[heat]"`. Pass the resulting `ML_HEAT` to [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for Green-Kubo / cepstral analysis.
+Requires the optional heat-flux backend dependencies; see [Optional heat-flux backend](#optional-heat-flux-backend). Pass the resulting `ML_HEAT` to [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for Green-Kubo / cepstral analysis.
 
 ---
 

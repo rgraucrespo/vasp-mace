@@ -1,8 +1,12 @@
-# Heat-flux MD example: ML_LHEAT writes a VASP-compatible ML_HEAT file
+# Heat-flux production example: ML_LHEAT writes a VASP-compatible ML_HEAT file
 # alongside an ML_HEAT.json sidecar.  Pass the resulting ML_HEAT to
 # `sportran` (https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898)
 # for Green-Kubo / cepstral analysis — vasp-mace itself does not compute
 # thermal conductivity.
+#
+# Green-Kubo production should be microcanonical. Equilibrate first with
+# INCAR_NVT_EQUIL (ML_LHEAT disabled), copy the equilibrated CONTCAR to POSCAR,
+# then run this NVE INCAR with ML_LHEAT enabled.
 #
 # Cell-size precondition: vasp-mace rejects supercells whose perpendicular
 # heights are smaller than 2 × num_message_passing_layers × r_cutoff + 2 Å.
@@ -15,11 +19,11 @@ NSW            = 100            # Number of MD steps (production: 10000+)
 TEBEG          = 300            # Starting temperature (K)
 POTIM          = 1.0            # MD timestep (fs)
 NBLOCK         = 10             # Write XDATCAR every N steps
-ISIF           = 2              # Fixed cell (NVT)
+ISIF           = 2              # Fixed cell (NVE)
 
-# Thermostat
-MDALGO         = 3              # Langevin
-LANGEVIN_GAMMA = 10.0 20.0      # Per-species friction (Pb, Te) in ps^-1
+# NVE production
+MDALGO         = 1              # VelocityVerlet
+ANDERSEN_PROB  = 0.0            # No Andersen collisions -> NVE
 
 # Heat flux
 ML_LHEAT          = .TRUE.      # Write ML_HEAT every step during MD

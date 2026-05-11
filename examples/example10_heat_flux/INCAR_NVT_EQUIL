@@ -1,0 +1,17 @@
+# Pre-equilibration for the heat-flux example.
+#
+# Run this first with ML_LHEAT disabled to equilibrate the structure at 300 K.
+# Then copy the resulting CONTCAR to POSCAR and run INCAR, which is the NVE
+# Green-Kubo production input that writes ML_HEAT.
+
+IBRION         = 0              # Molecular dynamics mode
+NSW            = 1000           # Increase for production equilibration
+TEBEG          = 300            # Target temperature (K)
+POTIM          = 1.0            # MD timestep (fs)
+NBLOCK         = 10             # Write XDATCAR every N steps
+ISIF           = 2              # Fixed cell NVT
+
+MDALGO         = 3              # Langevin thermostat
+LANGEVIN_GAMMA = 10.0 20.0      # Per-species friction (Pb, Te) in ps^-1
+
+ML_LHEAT       = .FALSE.        # Do not compute heat flux during equilibration

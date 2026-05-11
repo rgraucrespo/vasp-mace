@@ -16,12 +16,15 @@ import os
 from typing import Any, List, Tuple
 
 import numpy as np
-
-ASE_OUT_DIR = "ase_files"
 from ase import Atoms
+from ase.constraints import FixAtoms
 from ase.optimize import BFGS, FIRE, LBFGS
 from ase.io.trajectory import Trajectory
 from ase.units import GPa
+
+from .logging_utils import StepLogger, StepRecord
+from .types_ import IncarConfig
+from .io_vasp import write_xdatcar_header, append_xdatcar_frame
 
 # Prefer ase.filters (modern); fall back to older location if needed
 try:
@@ -34,12 +37,7 @@ except Exception:  # pragma: no cover
     except Exception:
         from ase.constraints import ExpCellFilter
 
-from ase.constraints import FixAtoms
-
-from .logging_utils import StepLogger, StepRecord
-from .types_ import IncarConfig
-from .io_vasp import write_xdatcar_header, append_xdatcar_frame
-
+ASE_OUT_DIR = "ase_files"
 EV_A3_TO_KBAR = 1602.1766208  # 1 eV/Å^3 in kBar
 
 

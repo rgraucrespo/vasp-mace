@@ -23,6 +23,7 @@ import numpy as np
 
 from vasp_mace.heat import MLHeatWriter, read_ml_heat, write_ml_heat
 from vasp_mace.incar import parse_incar
+from vasp_mace.cli import _validate_ml_lheat_config
 
 
 # Verbatim from not_for_release/ml_heat_implementation_instructions.md, lines 60-63.
@@ -188,6 +189,88 @@ class MLLheatIncarTests(unittest.TestCase):
             cfg = parse_incar(path)
         self.assertTrue(cfg.ML_LHEAT)
         self.assertEqual(cfg.ML_HEAT_INTERVAL, 1)
+
+
+class MLHeatConfigValidationTests(unittest.TestCase):
+    def _cfg_from_text(self, text: str):
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "INCAR")
+            Path(path).write_text(textwrap.dedent(text).strip() + "\n")
+            return parse_incar(path)
+
+    def test_accepts_fixed_cell_nve_without_dispersion(self) -> None:
+        cfg = self._cfg_from_text(
+            """
+            IBRION = 0
+            MDALGO = 1
+            ANDERSEN_PROB = 0.0
+            ISIF = 2
+            NSW = 10
+            TEBEG = 300
+            POTIM = 1.0
+            ML_LHEAT = .TRUE.
+            """
+        )
+        _validate_ml_lheat_config(cfg)
+
+    def test_rejects_thermostatted_md(self) -> None:
+        cfg = self._cfg_from_text(
+            """
+            IBRION = 0
+            MDALGO = 3
+            ISIF = 2
+            NSW = 10
+            TEBEG = 300
+            POTIM = 1.0
+            ML_LHEAT = .TRUE.
+            """
+        )
+        with self.assertRaisesRegex(ValueError, "fixed-cell NVE"):
+            _validate_ml_lheat_config(cfg)
+
+    def test_rejects_andersen_collisions(self) -> None:
+        cfg = self._cfg_from_text(
+            """
+            IBRION = 0
+            MDALGO = 1
+            ANDERSEN_PROB = 0.05
+            ISIF = 2
+            NSW = 10
+            TEBEG = 300
+            POTIM = 1.0
+            ML_LHEAT = .TRUE.
+            """
+        )
+        with self.assertRaisesRegex(ValueError, "fixed-cell NVE"):
+            _validate_ml_lheat_config(cfg)
+
+    def test_rejects_dispersion(self) -> None:
+        cfg = self._cfg_from_text(
+            """
+            IBRION = 0
+            MDALGO = 1
+            ANDERSEN_PROB = 0.0
+            ISIF = 2
+            NSW = 10
+            TEBEG = 300
+            POTIM = 1.0
+            IVDW = 12
+            ML_LHEAT = .TRUE.
+            """
+        )
+        with self.assertRaisesRegex(ValueError, "IVDW > 0"):
+            _validate_ml_lheat_config(cfg)
+
+    def test_non_md_lheat_is_ignored_by_validator(self) -> None:
+        cfg = self._cfg_from_text(
+            """
+            IBRION = 2
+            NSW = 10
+            IVDW = 12
+            ML_LHEAT = .TRUE.
+            """
+        )
+        _validate_ml_lheat_config(cfg)
 
 
 if __name__ == "__main__":

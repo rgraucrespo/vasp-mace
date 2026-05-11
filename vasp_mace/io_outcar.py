@@ -255,8 +255,8 @@ def write_outcar_tail(
         f.write(" ========================================================\n\n")
         f.write(f"                  Total CPU time used (sec):{cpu:13.3f}\n")
         f.write(f"                         Elapsed time (sec):{elapsed:13.3f}\n\n")
-        f.write(f"                   Maximum memory used (kb):          N/A\n")
-        f.write(f"                   Average memory used (kb):          N/A\n")
+        f.write("                   Maximum memory used (kb):          N/A\n")
+        f.write("                   Average memory used (kb):          N/A\n")
 
 
 def write_outcar_like(

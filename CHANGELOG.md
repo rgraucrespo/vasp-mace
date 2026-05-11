@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-05-11
+
+### Changed
+- `ML_LHEAT` is now restricted to fixed-cell NVE production MD (`IBRION = 0`, `MDALGO = 1`, `ANDERSEN_PROB = 0.0`, `ISIF = 2`). Thermostatted/barostatted MD should be used only for equilibration with `ML_LHEAT = .FALSE.`.
+- `ML_LHEAT` now rejects `IVDW > 0` because the current heat-flux backend computes only the MACE potential contribution; allowing D3-corrected MD would produce an inconsistent MACE-only heat flux.
+- `examples/example10_heat_flux/INCAR` is now an NVE Green-Kubo production input, with a separate `INCAR_NVT_EQUIL` for optional Langevin equilibration before the heat-flux run.
+- `ML_LHEAT` now reuses the main MD calculator's raw MACE torch model when available, avoiding a second checkpoint load and duplicate model copy in memory. The heat-flux backend also suppresses upstream `POSCAR_unfolding` artefact writes and keeps one scratch directory as a fallback guard instead of creating a temporary directory for every MD step.
+- The PyPI package no longer exposes a `[heat]` extra because its backend dependencies are GitHub-only. Optional ML_HEAT dependencies are now documented in `requirements-heat.txt`, and the publish workflow rejects direct URL dependencies in built metadata.
+
 ### Fixed
 - `make_heat_flux_calculator`: removed stale `pbc` entry from the `settings` docstring. `MACEUnfoldedHeatFluxCalculator` does not accept a `pbc` argument (fully-periodic 3D is baked in); passing `pbc` in `settings` would have raised `TypeError` at runtime.
 - `run_md`: `validate_3d_bulk_cell` is now called immediately after the heat-flux backend is constructed, before the MD loop starts. Previously the validation only fired at the first `compute()` call — after one full MD step had already executed.
@@ -177,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.1.0...v2.2.0

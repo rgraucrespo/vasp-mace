@@ -6,7 +6,7 @@ Skipped unless all of the following hold:
   :class:`tests.test_examples.ExampleSmokeTests`).
 * ``MACE_MODEL_PATH`` points at a readable MACE checkpoint.
 * The optional ``mace_unfolded`` package is importable
-  (``pip install vasp-mace[heat]``).
+  (``pip install -r requirements-heat.txt`` from a source checkout).
 
 The test asserts only that the backend returns a finite, length-3 heat-flux
 vector for the shared PbTe fixture (see :mod:`tests._heat_flux_fixtures`).
@@ -40,12 +40,13 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
         if importlib.util.find_spec("mace_unfolded") is None:
             self.skipTest(
                 "mace_unfolded not installed; install with "
-                "`pip install vasp-mace[heat]`"
+                "`pip install -r requirements-heat.txt` from a source checkout"
             )
         self.model_path = model
 
     def test_compute_returns_finite_three_vector(self) -> None:
         from vasp_mace.heat import make_heat_flux_calculator
+        from vasp_mace.mace_loader import load_calc
 
         atoms, velocities = build_pbte_fixture()
 
@@ -58,11 +59,18 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
         # mace-unfolded's L > R requirement but not the stricter
         # L > 2R + 2 Å vasp-mace bound). Production callers never touch
         # this; only unit tests do.
+        main_calc, device, dtype = load_calc(
+            self.model_path,
+            device="auto",
+            dtype="float64",
+        )
         calc = make_heat_flux_calculator(
             self.model_path,
             settings={
-                "device": "auto",
+                "device": device,
+                "dtype": dtype,
                 "cell_size_margin": -100.0,
+                "torch_model": main_calc.models[0],
             },
         )
         qxyz = calc.compute(atoms, velocities)
@@ -70,6 +78,8 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
         self.assertEqual(qxyz.shape, (3,))
         self.assertTrue(np.all(np.isfinite(qxyz)), f"flux not finite: {qxyz}")
         self.assertEqual(qxyz.dtype, np.float64)
+        self.assertTrue(calc.uses_shared_model)
+        calc.close()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 """Shared dataclasses used by vasp-mace run modes."""
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 
@@ -70,8 +70,10 @@ class IncarConfig:
         Whether to use climbing-image NEB.
     ML_LHEAT
         VASP-style logical: when true, MACE MD writes a VASP-compatible
-        ``ML_HEAT`` file with per-step heat-flux components. Only meaningful
-        for MD runs (``IBRION = 0``); ignored otherwise.
+        ``ML_HEAT`` file with per-step heat-flux components. Supported only
+        for fixed-cell NVE production MD (``IBRION = 0``, ``MDALGO = 1``,
+        ``ANDERSEN_PROB = 0.0``, ``ISIF = 2``) and ``IVDW = 0``; ignored for
+        non-MD modes.
     ML_HEAT_INTERVAL
         vasp-mace extension: write ``ML_HEAT`` every ``ML_HEAT_INTERVAL`` MD
         steps. Defaults to ``1`` (every step) to match VASP behaviour.

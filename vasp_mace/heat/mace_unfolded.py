@@ -3,7 +3,8 @@
 Thin adapter around
 :class:`mace_unfolded.unfolded_heat.unfolder_calculator.UnfoldedHeatFluxCalculator`
 exposed through the :class:`vasp_mace.heat.heat_flux.HeatFluxCalculator`
-interface. Install the underlying package with ``pip install vasp-mace[heat]``.
+interface. Install the underlying packages from ``requirements-heat.txt`` in a
+source checkout, or directly from their GitHub repositories.
 
 This implements the *potential* term of the heat flux only. For non-diffusive
 solids that omission is usually a small effect; ``flux_type`` is recorded in the
@@ -11,9 +12,10 @@ solids that omission is usually a small effect; ``flux_type`` is recorded in the
 written. Convective and gauge-fixed flavours are deliberately deferred (see
 ``not_for_release/ml_heat_implementation_instructions.md``).
 
-**Scope of the first release.** Only fully periodic 3D bulk solids in
-sufficiently large supercells are supported. Concretely, every perpendicular
-cell height must exceed
+**Scope of the first release.** Heat-flux output is restricted to fixed-cell
+NVE production MD with the bare MACE potential (``IVDW = 0``). Only fully
+periodic 3D bulk solids in sufficiently large supercells are supported.
+Concretely, every perpendicular cell height must exceed
 ``2 × num_message_passing_layers × r_cutoff + cell_size_margin`` (default
 margin 2 Å). Slabs, wires, molecules, and small primitive cells are rejected
 with a clear ``ValueError`` rather than silently returning a wrong flux. The
@@ -34,7 +36,7 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
@@ -105,36 +107,113 @@ def validate_3d_bulk_cell(
 
 
 @contextlib.contextmanager
-def _suppress_unfolder_artefact_files():
+def _suppress_unfolder_artefact_files(scratch_dir: Optional[str] = None):
     """Run a block in a scratch directory.
 
     ``UnfoldedHeatFluxCalculator.calculate`` unconditionally writes a
     ``POSCAR_unfolding`` file to ``cwd`` (and ``POSCAR_unfolded`` when its
     ``debug`` flag is set). For per-MD-step heat-flux evaluation we do not want
     to pollute the user's run directory, so we briefly chdir to a tempdir and
-    discard whatever the upstream call leaves behind.
+    discard whatever the upstream call leaves behind. The known artefact writes
+    are patched to no-op inside this context; the chdir remains as a guard
+    against future upstream side effects. ``scratch_dir`` lets long MD runs
+    reuse one hidden scratch directory instead of creating and removing a
+    temporary directory at every heat-flux step.
     """
+    import ase.io
+
     cwd = os.getcwd()
-    with tempfile.TemporaryDirectory(prefix="vasp_mace_heat_") as scratch:
-        os.chdir(scratch)
+    original_write = ase.io.write
+
+    def _write_without_unfolder_artefacts(filename, *args, **kwargs):
         try:
-            yield
-        finally:
-            os.chdir(cwd)
+            name = os.fspath(filename)
+        except TypeError:
+            name = str(filename)
+        if os.path.basename(name) in {"POSCAR_unfolding", "POSCAR_unfolded"}:
+            return None
+        return original_write(filename, *args, **kwargs)
+
+    if scratch_dir is None:
+        with tempfile.TemporaryDirectory(prefix="vasp_mace_heat_") as scratch:
+            os.chdir(scratch)
+            ase.io.write = _write_without_unfolder_artefacts
+            try:
+                yield
+            finally:
+                ase.io.write = original_write
+                os.chdir(cwd)
+        return
+
+    os.makedirs(scratch_dir, exist_ok=True)
+    try:
+        os.chdir(scratch_dir)
+        ase.io.write = _write_without_unfolder_artefacts
+        yield
+    finally:
+        ase.io.write = original_write
+        os.chdir(cwd)
+
+
+def _tensor_to_numpy_1d(value: Any) -> np.ndarray:
+    """Convert a torch/numpy/list vector to a 1-D float64 NumPy array."""
+    if hasattr(value, "detach"):
+        value = value.detach().cpu().numpy()
+    return np.asarray(value, dtype=float).reshape(-1)
+
+
+def _model_device_dtype(torch_model: Any, device: str, dtype: str) -> tuple[str, str]:
+    """Resolve device/dtype strings for a caller-supplied torch model."""
+    if device == "auto" or dtype == "auto":
+        try:
+            first_param = next(torch_model.parameters())
+        except StopIteration:
+            first_param = None
+        if device == "auto":
+            device = first_param.device.type if first_param is not None else "cpu"
+        if dtype == "auto":
+            if first_param is not None and str(first_param.dtype).endswith("float32"):
+                dtype = "float32"
+            else:
+                dtype = "float64"
+
+    if dtype not in ("float32", "float64"):
+        raise ValueError(f"dtype must be 'float32' or 'float64'; got {dtype!r}")
+
+    try:
+        if dtype == "float64":
+            torch_model.double()
+        else:
+            torch_model.float()
+        torch_model.to(device)
+    except Exception as exc:
+        if device not in ("cuda", "mps"):
+            raise
+        print(
+            f"[warning] {device.upper()} heat-flux model transfer failed ({exc}); "
+            "falling back to CPU/float64."
+        )
+        device = "cpu"
+        dtype = "float64"
+        torch_model.double()
+        torch_model.to(device)
+
+    return device, dtype
 
 
 class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
     """Potential heat-flux calculator backed by ``mace-unfolded``.
 
-    Loads a MACE checkpoint via :func:`vasp_mace.mace_loader.load_calc` so
-    device/dtype resolution and CUDA/MPS→CPU fallback match the rest of the
-    package, then drives the upstream unfolded calculator on each call to
-    :meth:`compute`.
+    Loads a MACE checkpoint via :func:`vasp_mace.mace_loader.load_calc` unless
+    the caller supplies an already-loaded raw MACE torch model. The latter path
+    is used by ``run_md`` so ``ML_LHEAT`` does not keep a second copy of the
+    model in memory.
 
     Parameters
     ----------
     model_path
-        Path to a MACE ``.model`` checkpoint.
+        Path to a MACE ``.model`` checkpoint. Used for loading when
+        ``torch_model`` is not supplied and recorded in metadata by callers.
     flux_type
         Only ``"potential"`` is supported in this release. Convective and
         gauge-fixed variants are deferred.
@@ -166,6 +245,10 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         ``mace-torch`` pin, or a fix lands in mace-unfolded), flip the
         default. Reverse mode is workable on a GPU; on CPU it can take
         many minutes per call for the cell sizes the unfolder requires.
+    torch_model
+        Optional raw MACE torch model, typically ``main_calc.models[0]`` from
+        the ASE calculator already attached to the MD atoms. Supplying this
+        avoids loading the same checkpoint twice.
 
     Raises
     ------
@@ -183,6 +266,7 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         dtype: str = "float64",
         cell_size_margin: float = 2.0,
         forward: bool = False,
+        torch_model: Optional[Any] = None,
     ) -> None:
         if flux_type != "potential":
             raise ValueError(
@@ -197,15 +281,22 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         except ImportError as exc:
             raise ImportError(INSTALL_HINT) from exc
 
-        from ..mace_loader import load_calc
+        if torch_model is None:
+            from ..mace_loader import load_calc
 
-        calc, resolved_device, resolved_dtype = load_calc(
-            model_path, device=device, dtype=dtype
-        )
-        # MACECalculator stores the underlying torch model in ``models[0]``;
-        # mace-unfolded operates on that raw model rather than the calculator
-        # so it can read per-atom energies from the unfolded graph.
-        torch_model = calc.models[0]
+            calc, resolved_device, resolved_dtype = load_calc(
+                model_path, device=device, dtype=dtype
+            )
+            # MACECalculator stores the underlying torch model in ``models[0]``;
+            # mace-unfolded operates on that raw model rather than the calculator
+            # so it can read per-atom energies from the unfolded graph.
+            torch_model = calc.models[0]
+            uses_shared_model = False
+        else:
+            resolved_device, resolved_dtype = _model_device_dtype(
+                torch_model, device=device, dtype=dtype
+            )
+            uses_shared_model = True
 
         # Read the model's interaction radius and message-passing depth so
         # ``compute()`` can validate the cell size on every call.
@@ -227,6 +318,8 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         self._r_cutoff = r_cutoff
         self._num_message_passing = num_message_passing
         self._cell_size_margin = float(cell_size_margin)
+        self._uses_shared_model = uses_shared_model
+        self._scratch = tempfile.TemporaryDirectory(prefix="vasp_mace_heat_")
 
     @property
     def device(self) -> str:
@@ -247,6 +340,11 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
     @property
     def model_path(self) -> str:
         return self._model_path
+
+    @property
+    def uses_shared_model(self) -> bool:
+        """Whether the backend reuses the main MD calculator's torch model."""
+        return self._uses_shared_model
 
     @property
     def r_cutoff(self) -> float:
@@ -300,21 +398,40 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         atoms_for_calc = atoms.copy()
         atoms_for_calc.set_velocities(v)
 
-        with _suppress_unfolder_artefact_files():
+        with _suppress_unfolder_artefact_files(self._scratch.name):
             results = self._unf.calculate(atoms_for_calc)
 
-        # mace-unfolded returns ``heat_flux`` as a torch tensor on the
-        # compute device (CPU or CUDA). Pull it back to host before NumPy
-        # conversion; ``np.asarray`` cannot ingest a CUDA tensor directly.
-        flux_raw = results["heat_flux"]
-        if hasattr(flux_raw, "detach"):
-            flux_raw = flux_raw.detach().cpu().numpy()
-        flux = np.asarray(flux_raw, dtype=float).reshape(-1)
+        # Prefer the extensive numerator directly. Upstream also returns
+        # ``heat_flux = numerator / volume``; using the numerator avoids
+        # depending on upstream's cached volume and is identical for fixed-cell
+        # NVE, the only ensemble accepted for ML_LHEAT.
+        if (
+            "heat_flux_potential_term" in results
+            and "heat_flux_force_term" in results
+        ):
+            flux = _tensor_to_numpy_1d(
+                results["heat_flux_potential_term"]
+                - results["heat_flux_force_term"]
+            )
+        else:
+            flux = _tensor_to_numpy_1d(results["heat_flux"]) * float(atoms.get_volume())
         if flux.size != 3:
             raise RuntimeError(
                 f"mace-unfolded returned heat flux of length {flux.size}; "
                 "expected 3 components for fully periodic systems"
             )
 
-        volume = float(atoms.get_volume())
-        return flux * volume / _PS_TO_FS
+        return flux / _PS_TO_FS
+
+    def close(self) -> None:
+        """Release the persistent scratch directory used for upstream artefacts."""
+        scratch = getattr(self, "_scratch", None)
+        if scratch is not None:
+            scratch.cleanup()
+            self._scratch = None
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
