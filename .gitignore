@@ -22,6 +22,10 @@ not_for_release/
 vasp-mace_dev.md
 AGENTS.md
 
+# Generated test data (model-checkpoint-specific; regenerate locally with
+# python -m tests.test_mace_unfolded_regression --create-reference)
+tests/data/
+
 # MD example run artifacts
 examples/example07_PbTe_MD/INCAR
 examples/example07_PbTe_MD/nvt_output/

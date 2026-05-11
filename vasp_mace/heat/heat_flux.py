@@ -48,7 +48,6 @@ def make_heat_flux_calculator(
         - ``backend`` (default ``"mace_unfolded"``).
         - ``device``, ``dtype`` — see :func:`vasp_mace.mace_loader.load_calc`.
         - ``flux_type`` — currently only ``"potential"`` is supported.
-        - ``pbc`` — boundary flags; defaults to fully periodic.
         - ``forward`` — forward- vs reverse-mode autodiff in mace-unfolded.
 
         Unknown keys are forwarded to the chosen backend, which raises

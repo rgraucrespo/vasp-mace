@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Iterable, Optional, Tuple, Union
+from typing import IO, Iterable, Optional, Tuple, Union
 
 import numpy as np
 
@@ -160,7 +160,7 @@ class MLHeatWriter:
         self._path = path
         self._mode = mode
         self._flush_every = flush_every
-        self._fh: Optional[object] = open(path, mode)
+        self._fh: Optional[IO[str]] = open(path, mode)
         self._n_written = 0
 
     @property

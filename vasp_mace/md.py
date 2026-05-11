@@ -378,7 +378,7 @@ def run_md(
                 "ML_LHEAT=.TRUE. requires a model checkpoint path to load the "
                 "heat-flux backend; pass it via the CLI dispatcher"
             )
-        from .heat import MLHeatWriter, make_heat_flux_calculator
+        from .heat import MLHeatWriter, make_heat_flux_calculator, validate_3d_bulk_cell
 
         # Pin the heat-flux backend to float64 even when the main calculator
         # runs at float32 on a GPU: mace-unfolded has a known float32
@@ -394,6 +394,12 @@ def run_md(
         heat_calc = make_heat_flux_calculator(
             model_path,
             settings={"device": device, "dtype": "float64"},
+        )
+        validate_3d_bulk_cell(
+            atoms,
+            heat_calc.r_cutoff,
+            heat_calc.num_message_passing,
+            heat_calc.cell_size_margin,
         )
         heat_writer = MLHeatWriter("ML_HEAT")
         _write_ml_heat_json(

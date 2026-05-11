@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `make_heat_flux_calculator`: removed stale `pbc` entry from the `settings` docstring. `MACEUnfoldedHeatFluxCalculator` does not accept a `pbc` argument (fully-periodic 3D is baked in); passing `pbc` in `settings` would have raised `TypeError` at runtime.
+- `run_md`: `validate_3d_bulk_cell` is now called immediately after the heat-flux backend is constructed, before the MD loop starts. Previously the validation only fired at the first `compute()` call — after one full MD step had already executed.
+- `MLHeatWriter._fh`: corrected type annotation from `Optional[object]` to `Optional[IO[str]]`.
+
+### Repository
+- Added `tests/data/` to `.gitignore`; the `mace_unfolded_reference.npz` regression file is model-checkpoint-specific and must be generated locally (see `tests/test_mace_unfolded_regression.py`).
+
 ## [2.3.1] - 2026-05-10
 
 ### Changed
