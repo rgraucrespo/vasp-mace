@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Installation section now lists `pip install "vasp-mace[phonons]"` as an optional step for `IBRION = 6` (symmetry-reduced phonons via phonopy), matching the existing `torch-dftd` callout pattern.
+
 ## [2.5.0] - 2026-05-26
 
 ### Fixed

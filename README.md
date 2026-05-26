@@ -59,10 +59,13 @@ Whatever brings you here, enjoy `vasp-mace`.
 conda create -n vasp_mace_env python=3.11 -y
 conda activate vasp_mace_env
 pip install vasp-mace
-pip install torch-dftd   # optional, only needed for IVDW > 0
+pip install torch-dftd              # optional, only needed for IVDW > 0
+pip install "vasp-mace[phonons]"    # optional, only needed for IBRION = 6
 ```
 
 > **DFT-D3 dispersion** (`IVDW > 0` in INCAR) is provided by [`torch-dftd`](https://github.com/pfnet-research/torch-dftd). The package is pip-installable and not pulled in by default — install it only if you need dispersion corrections. The xc functional is fixed to PBE.
+
+> **Symmetry-reduced phonons** (`IBRION = 6`) require [`phonopy`](https://phonopy.github.io/phonopy/). Install via `pip install "vasp-mace[phonons]"` or `pip install phonopy`. Without it, `IBRION = 6` falls back to `IBRION = 5` (no symmetry reduction).
 
 ### Optional heat-flux backend
 
