@@ -195,7 +195,7 @@ def run_neb(
     model_path: str,
     device: str = "auto",
     dtype: str = "auto",
-    dispersion: bool = False,
+    ivdw: int = 0,
     optimizer: str = "BFGS",
 ) -> tuple[list[list[StepRecord]], bool]:
     """Run a NEB calculation.
@@ -211,8 +211,9 @@ def run_neb(
         Path to the MACE .model file.
     device, dtype : str
         Passed to load_calc (device/dtype resolved on first call).
-    dispersion : bool
-        Enable DFT-D3 dispersion correction.
+    ivdw : int
+        IVDW selector forwarded to load_calc (0 disables D3; 11/12 enable
+        D3-zero/D3-BJ).
     optimizer : str
         Fallback optimizer name {BFGS, FIRE, LBFGS} when IBRION is not in INCAR.
 
@@ -246,12 +247,12 @@ def run_neb(
     # ---- Attach one independent calculator per image (ASE requirement) ------
     # Resolve device/dtype once; reuse for all subsequent images.
     calc_0, device, dtype = load_calc(
-        model_path, device=device, dtype=dtype, dispersion=dispersion
+        model_path, device=device, dtype=dtype, ivdw=ivdw
     )
     images[0].calc = calc_0
     for i in range(1, n_total):
         calc_i, _, _ = load_calc(
-            model_path, device=device, dtype=dtype, dispersion=dispersion
+            model_path, device=device, dtype=dtype, ivdw=ivdw
         )
         images[i].calc = calc_i
 

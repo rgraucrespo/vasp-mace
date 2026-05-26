@@ -60,7 +60,7 @@ SMOKE_CASES = (
         """,
         outputs=("CONTCAR", "OUTCAR", "OSZICAR", "XDATCAR", "vasprun.xml"),
         tags=("all",),
-        optional_import="dftd4",
+        optional_import="torch_dftd",
     ),
     SmokeCase(
         name="example03_md_cspbi3",
@@ -256,7 +256,7 @@ class ExampleInputTests(unittest.TestCase):
             with self.subTest(path=path.relative_to(REPO_ROOT)):
                 cfg = parse_incar(str(path))
                 self.assertGreaterEqual(cfg.NSW, 0)
-                self.assertIn(cfg.IVDW, (0, 11, 12, 13, 14))
+                self.assertIn(cfg.IVDW, (0, 11, 12))
                 self.assertIn(cfg.NFREE, (1, 2))
                 if cfg.IMAGES > 0:
                     self.assertLess(cfg.SPRING, 0)

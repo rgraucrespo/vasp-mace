@@ -134,12 +134,18 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         )
         isif = 2
 
-    # Validate IVDW
-    if ivdw not in (0, 11, 12, 13, 14):
+    # Validate IVDW. ATM three-body terms (13/14) are deferred: torch-dftd
+    # supports them via abc=True, but the wiring + reference data aren't in
+    # this release. Reject explicitly so users don't silently get D3-BJ.
+    if ivdw in (13, 14):
+        raise ValueError(
+            f"IVDW={ivdw} (D3 + ATM three-body) is not yet supported in "
+            f"vasp-mace. Use IVDW=11 (D3-zero) or IVDW=12 (D3-BJ) instead."
+        )
+    if ivdw not in (0, 11, 12):
         raise ValueError(
             f"IVDW={ivdw} is not supported. "
-            f"Supported values: 0 (none), 11 (D3-zero), 12 (D3-BJ), "
-            f"13 (D3-zero+ATM), 14 (D3-BJ+ATM)."
+            f"Supported values: 0 (none), 11 (D3-zero), 12 (D3-BJ)."
         )
 
     nfree = _to_int(raw.get("NFREE", 2), 2)

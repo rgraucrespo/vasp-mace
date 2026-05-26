@@ -31,7 +31,7 @@ See [NOTICE.md](NOTICE.md) for the repository-level notice.
 - **Phonon calculations**: Γ-point force constants and frequencies via finite differences (`IBRION = 5`); symmetry-reduced displacements via phonopy (`IBRION = 6`), with VASP-compatible `DYNMAT` and `OUTCAR` output
 - **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill polycrystalline averages (K, G, E, ν) via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
 - **Selective dynamics**: per-atom coordinate fixing from POSCAR, preserved in CONTCAR
-- **DFT-D3 dispersion correction** via `IVDW` in INCAR (zero-damping and Becke-Johnson variants, with optional three-body ATM term)
+- **DFT-D3 dispersion correction** via `IVDW` in INCAR (zero-damping and Becke-Johnson variants; xc=PBE)
 - **Multiple ISIF modes**: positions-only, full cell relaxation, constant-volume shape relaxation, volume-only
 - **Force-based** (`EDIFFG < 0`) and **energy-based** (`EDIFFG > 0`) convergence criteria
 - **Target pressure** support via `PSTRESS` (ISIF = 3)
@@ -58,11 +58,11 @@ Whatever brings you here, enjoy `vasp-mace`.
 ```bash
 conda create -n vasp_mace_env python=3.11 -y
 conda activate vasp_mace_env
-conda install -c conda-forge dftd4
 pip install vasp-mace
+pip install torch-dftd   # optional, only needed for IVDW > 0
 ```
 
-> **DFT-D3 dispersion** (`IVDW` tag) requires `dftd4`, which is best installed via conda before `pip install vasp-mace`. If you do not need dispersion corrections, the conda step can be skipped.
+> **DFT-D3 dispersion** (`IVDW > 0` in INCAR) is provided by [`torch-dftd`](https://github.com/pfnet-research/torch-dftd). The package is pip-installable and not pulled in by default — install it only if you need dispersion corrections. The xc functional is fixed to PBE.
 
 ### Optional heat-flux backend
 
@@ -90,8 +90,8 @@ git clone https://github.com/rgraucrespo/vasp-mace.git
 cd vasp-mace
 conda create -n vasp_mace_env python=3.11 -y
 conda activate vasp_mace_env
-conda install -c conda-forge dftd4
 pip install -e .
+pip install torch-dftd   # optional, only needed for IVDW > 0
 ```
 
 ### Model checkpoint
@@ -154,8 +154,8 @@ Only the tags relevant to `vasp-mace` are parsed; all others are silently ignore
 | `0` | None (default) |
 | `11` | D3(zero-damping) |
 | `12` | D3(Becke-Johnson) |
-| `13` | D3(zero-damping) + ATM three-body |
-| `14` | D3(Becke-Johnson) + ATM three-body |
+
+D3 is added on top of the MACE potential via [`torch-dftd`](https://github.com/pfnet-research/torch-dftd) with `xc = PBE` and a 40 Bohr cutoff. ATM three-body variants (`IVDW = 13/14`) are not yet wired and are rejected at INCAR parse time.
 
 ### Nudged Elastic Band (IMAGES ≥ 1)
 

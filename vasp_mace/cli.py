@@ -96,14 +96,13 @@ def _run() -> None:
     if cfg.IMAGES > 0:
         from .neb import run_neb
 
-        dispersion = cfg.IVDW > 0
         n_total = cfg.IMAGES + 2
         image_steps, converged = run_neb(
             cfg,
             args.model,
             device=args.device,
             dtype=args.dtype,
-            dispersion=dispersion,
+            ivdw=cfg.IVDW,
             optimizer=args.optimizer,
         )
         print(
@@ -116,9 +115,6 @@ def _run() -> None:
 
     # Non-NEB modes: read top-level POSCAR and load a single calculator
     atoms = read_poscar("POSCAR")
-
-    # Load calculator; IVDW > 0 enables empirical dispersion (DFT-D3)
-    dispersion = cfg.IVDW > 0
 
     # ML_LHEAT requires a float64 heat-flux backend (mace-unfolded has a
     # float32 dtype-mismatch bug). Constructing two MACECalculators with
@@ -138,7 +134,7 @@ def _run() -> None:
         main_dtype = "float64"
 
     calc, device, dtype = load_calc(
-        args.model, device=args.device, dtype=main_dtype, dispersion=dispersion
+        args.model, device=args.device, dtype=main_dtype, ivdw=cfg.IVDW
     )
     atoms.calc = calc
 

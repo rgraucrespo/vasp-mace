@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-05-26
+
+### Fixed
+- `IVDW > 0` was a silent no-op: `load_calc` passed `dispersion=True` into `MACECalculator(...)`, but mace-torch 0.3.x swallows that kwarg via `Calculator.__init__`'s catch-all `**kwargs` and never applies D3. Energies and forces were pure MACE regardless of `IVDW`. `load_calc` now constructs a `torch_dftd.TorchDFTD3Calculator` (xc=PBE, cutoff=40 Bohr) and returns `SumCalculator([mace_calc, d3_calc])` whenever `IVDW > 0`, mirroring how `mace_mp()` wires dispersion internally. The damping flavor follows the IVDW value: `11` → zero damping, `12` → Becke-Johnson. Reported against a MoS₂ test where `IVDW = 12` produced bit-identical results to `IVDW = 0`. Verified on the h-BN example with `mace-mp-0b3-medium`: `ΔE ≈ −561 meV` (4-atom cell) between `IVDW=0` and `IVDW=12`, attractive as expected for a layered vdW solid.
+
+### Changed
+- `IVDW` validation is now stricter: ATM three-body variants (`13`/`14`) are explicitly rejected at INCAR parse time with a message pointing to `11`/`12`. Only `0`, `11`, and `12` are accepted. The D3 xc functional is hardcoded to PBE.
+- `load_calc` signature: the `dispersion: bool` parameter has been replaced by `ivdw: int`. Call sites in `cli.py` and `neb.py` were updated; `run_neb` now takes `ivdw=` instead of `dispersion=`.
+- `tests/test_examples.py`: the `example02_dispersion_hbn` smoke case now gates on `torch_dftd` (the real dependency) instead of `dftd4`.
+
+### Added
+- `tests/test_ivdw_dispersion.py`: regression coverage that proves D3 is now actually being summed in (energies and forces shift on a Cu pair) and that the IVDW rejection paths fire as documented.
+
 ## [2.4.0] - 2026-05-11
 
 ### Changed
@@ -186,7 +199,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.2.0...v2.3.0
