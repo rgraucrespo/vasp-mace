@@ -155,6 +155,11 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
 
     images = _to_int(raw.get("IMAGES", 0), 0)
     spring = _to_float(raw.get("SPRING", -5.0), -5.0)
+    if images > 0 and spring >= 0.0:
+        raise ValueError(
+            f"SPRING={spring} is not supported for NEB in vasp-mace. "
+            "Use a negative SPRING value (VASP NEB convention), e.g. SPRING=-5."
+        )
     lclimb = _to_bool(raw.get("LCLIMB", False), False)
 
     ml_lheat = _to_bool(raw.get("ML_LHEAT", False), False)

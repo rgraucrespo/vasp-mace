@@ -153,6 +153,7 @@ class LangevinNPT(MolecularDynamics):
         atoms.set_velocities(v)
         return f
 
+
 def _per_atom_friction(atoms: Atoms, langevin_gamma: np.ndarray) -> np.ndarray:
     """Return per-atom friction (ps⁻¹, shape (N,)) from LANGEVIN_GAMMA.
 
@@ -181,6 +182,54 @@ def _per_atom_friction(atoms: Atoms, langevin_gamma: np.ndarray) -> np.ndarray:
     return np.array([gamma_map[s] for s in symbols])
 
 
+def _temperature_target(start_K: float, end_K: float, step: int, nsteps: int) -> float:
+    """Return the linear-ramp thermostat target for an MD step."""
+    if nsteps <= 1:
+        return float(start_K)
+    frac = (step - 1) / (nsteps - 1)
+    return float(start_K + frac * (end_K - start_K))
+
+
+def _set_dynamics_temperature(dyn: Any, temperature_K: float) -> bool:
+    """Set a dynamics object's thermostat target temperature.
+
+    ASE exposes public ``set_temperature`` methods for Andersen and Langevin,
+    but not for ``NoseHooverChainNVT``. For the latter, update the private
+    thermostat state used by ASE 3.24+.
+    """
+    setter = getattr(dyn, "set_temperature", None)
+    if callable(setter):
+        try:
+            setter(temperature_K=temperature_K)
+        except TypeError:
+            setter(temperature_K)
+        return True
+
+    if hasattr(dyn, "temp_K"):
+        dyn.temp_K = float(temperature_K)
+        return True
+
+    thermostat = getattr(dyn, "_thermostat", None)
+    if thermostat is None:
+        return False
+
+    n_atoms = getattr(
+        thermostat, "_num_atoms_global", getattr(thermostat, "_num_atoms", None)
+    )
+    if (
+        n_atoms is None
+        or not hasattr(thermostat, "_kT")
+        or not hasattr(thermostat, "_Q")
+        or not hasattr(thermostat, "_tdamp")
+    ):
+        return False
+
+    thermostat._kT = kB * float(temperature_K)
+    thermostat._Q[0] = 3 * int(n_atoms) * thermostat._kT * thermostat._tdamp**2
+    thermostat._Q[1:] = thermostat._kT * thermostat._tdamp**2
+    return True
+
+
 ASE_OUT_DIR = "ase_files"
 
 
@@ -197,9 +246,7 @@ def _validate_ml_lheat_md_config(cfg: IncarConfig) -> None:
             "dispersion-corrected MD without ML_LHEAT."
         )
     if not (
-        cfg.MDALGO == 1
-        and abs(float(cfg.ANDERSEN_PROB)) <= 1.0e-15
-        and cfg.ISIF == 2
+        cfg.MDALGO == 1 and abs(float(cfg.ANDERSEN_PROB)) <= 1.0e-15 and cfg.ISIF == 2
     ):
         raise ValueError(
             "ML_LHEAT=.TRUE. is restricted to fixed-cell NVE production MD. "
@@ -292,7 +339,7 @@ def run_md(
     # Resolve TEEND: -1 means same as TEBEG (no ramp)
     T_start = cfg.TEBEG
     T_end = cfg.TEEND if cfg.TEEND >= 0.0 else cfg.TEBEG
-    do_ramp = (cfg.MDALGO == 3) and (T_end != T_start)
+    do_ramp = T_end != T_start
 
     # Friction coefficients: build per-atom array (ps^-1), then convert to fs^-1
     gamma_per_atom = _per_atom_friction(atoms, cfg.LANGEVIN_GAMMA)  # shape (N,), ps^-1
@@ -376,6 +423,16 @@ def run_md(
             f"MDALGO={cfg.MDALGO} is not supported. Use 1 (Andersen/NVE), 2 (Nose-Hoover), or 3 (Langevin)."
         )
 
+    ramp_supported = False
+    if do_ramp:
+        ramp_supported = _set_dynamics_temperature(dyn, T_start)
+        if not ramp_supported:
+            print(
+                f"[warn] TEEND={T_end} differs from TEBEG={T_start}, but the "
+                f"selected MD mode has no thermostat target to ramp. Using "
+                f"TEBEG for velocity initialisation only."
+            )
+
     # Write XDATCAR header
     # For Langevin NPT (MDALGO=3, ISIF=3), the cell changes so the header is updated per frame.
     # For all other MD modes (NVE, NVT), the cell is fixed — write the header once.
@@ -448,14 +505,9 @@ def run_md(
 
     try:
         for step in range(1, cfg.NSW + 1):
-            # Temperature ramp for Langevin (linear interpolation)
-            if do_ramp and cfg.NSW > 1:
-                frac = (step - 1) / (cfg.NSW - 1)
-                T_target = T_start + frac * (T_end - T_start)
-                if hasattr(dyn, "set_temperature"):
-                    dyn.set_temperature(temperature_K=T_target)
-                elif hasattr(dyn, "temp_K"):
-                    dyn.temp_K = T_target
+            if ramp_supported and cfg.NSW > 1:
+                T_target = _temperature_target(T_start, T_end, step, cfg.NSW)
+                _set_dynamics_temperature(dyn, T_target)
 
             dyn.run(1)  # single MD step
 

@@ -405,13 +405,9 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         # ``heat_flux = numerator / volume``; using the numerator avoids
         # depending on upstream's cached volume and is identical for fixed-cell
         # NVE, the only ensemble accepted for ML_LHEAT.
-        if (
-            "heat_flux_potential_term" in results
-            and "heat_flux_force_term" in results
-        ):
+        if "heat_flux_potential_term" in results and "heat_flux_force_term" in results:
             flux = _tensor_to_numpy_1d(
-                results["heat_flux_potential_term"]
-                - results["heat_flux_force_term"]
+                results["heat_flux_potential_term"] - results["heat_flux_force_term"]
             )
         else:
             flux = _tensor_to_numpy_1d(results["heat_flux"]) * float(atoms.get_volume())

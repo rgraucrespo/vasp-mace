@@ -75,6 +75,4 @@ def make_heat_flux_calculator(
         except ImportError as exc:
             raise ImportError(INSTALL_HINT) from exc
         return MACEUnfoldedHeatFluxCalculator(model_path, **settings)
-    raise ValueError(
-        f"Unknown heat-flux backend {backend!r}; expected 'mace_unfolded'"
-    )
+    raise ValueError(f"Unknown heat-flux backend {backend!r}; expected 'mace_unfolded'")

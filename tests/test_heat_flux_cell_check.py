@@ -40,37 +40,31 @@ class CellPreconditionTests(unittest.TestCase):
         # 3×4.211 ≈ 12.633 Å. Fails 26 Å bound.
         atoms = _cubic(12.633)
         with self.assertRaisesRegex(ValueError, "perpendicular cell height"):
-            validate_3d_bulk_cell(
-                atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0
-            )
+            validate_3d_bulk_cell(atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0)
 
     def test_negative_margin_relaxes_bound(self) -> None:
         # Same too-small cell as above passes once the margin drops far
         # enough; this is the unit-test escape hatch documented on
         # MACEUnfoldedHeatFluxCalculator.cell_size_margin.
         atoms = _cubic(12.633)
-        validate_3d_bulk_cell(
-            atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=-100.0
-        )
+        validate_3d_bulk_cell(atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=-100.0)
 
     def test_rejects_partially_periodic(self) -> None:
         atoms = _cubic(30.0)
         atoms.pbc = [True, True, False]
         with self.assertRaisesRegex(ValueError, "fully periodic 3D"):
-            validate_3d_bulk_cell(
-                atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0
-            )
+            validate_3d_bulk_cell(atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0)
 
     def test_rejects_thin_direction_in_otherwise_large_cell(self) -> None:
         # 30×30×10: two heights pass, third fails.
         atoms = Atoms(
-            symbols=["Mg"], positions=[[0, 0, 0]],
-            cell=[30.0, 30.0, 10.0], pbc=True,
+            symbols=["Mg"],
+            positions=[[0, 0, 0]],
+            cell=[30.0, 30.0, 10.0],
+            pbc=True,
         )
         with self.assertRaisesRegex(ValueError, "10\\.0"):
-            validate_3d_bulk_cell(
-                atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0
-            )
+            validate_3d_bulk_cell(atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0)
 
     def test_uses_perpendicular_height_not_lattice_vector_length(self) -> None:
         # Triclinic cell where |a|, |b|, |c| are all > 26 Å but the
@@ -86,9 +80,7 @@ class CellPreconditionTests(unittest.TestCase):
         # |c| = sqrt(25² + 25² + 5²) ≈ 35.7 Å (long), but height ≈ 5 Å.
         atoms = Atoms(symbols=["Mg"], positions=[[0, 0, 0]], cell=cell, pbc=True)
         with self.assertRaisesRegex(ValueError, "perpendicular cell height"):
-            validate_3d_bulk_cell(
-                atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0
-            )
+            validate_3d_bulk_cell(atoms, self.R_CUTOFF, self.NUM_LAYERS, margin=2.0)
 
 
 if __name__ == "__main__":

@@ -229,6 +229,11 @@ def run_neb(
         raise ValueError(
             f"IMAGES={n_images}: NEB requires at least 1 intermediate image."
         )
+    if cfg.SPRING >= 0.0:
+        raise ValueError(
+            f"SPRING={cfg.SPRING} is not supported for NEB in vasp-mace. "
+            "Use a negative SPRING value (VASP NEB convention), e.g. SPRING=-5."
+        )
 
     climb = cfg.LCLIMB
     k = abs(cfg.SPRING)
@@ -246,14 +251,10 @@ def run_neb(
 
     # ---- Attach one independent calculator per image (ASE requirement) ------
     # Resolve device/dtype once; reuse for all subsequent images.
-    calc_0, device, dtype = load_calc(
-        model_path, device=device, dtype=dtype, ivdw=ivdw
-    )
+    calc_0, device, dtype = load_calc(model_path, device=device, dtype=dtype, ivdw=ivdw)
     images[0].calc = calc_0
     for i in range(1, n_total):
-        calc_i, _, _ = load_calc(
-            model_path, device=device, dtype=dtype, ivdw=ivdw
-        )
+        calc_i, _, _ = load_calc(model_path, device=device, dtype=dtype, ivdw=ivdw)
         images[i].calc = calc_i
 
     print(

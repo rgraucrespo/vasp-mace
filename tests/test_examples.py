@@ -307,9 +307,7 @@ class ExampleSmokeTests(unittest.TestCase):
         timeout = int(os.environ.get("VASP_MACE_TEST_TIMEOUT", "600"))
 
         cases = [
-            case
-            for case in SMOKE_CASES
-            if selected == "all" or "quick" in case.tags
+            case for case in SMOKE_CASES if selected == "all" or "quick" in case.tags
         ]
         self.assertGreater(len(cases), 0)
 

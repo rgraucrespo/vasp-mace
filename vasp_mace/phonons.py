@@ -210,8 +210,8 @@ def _run_with_symmetry(atoms: Atoms, calc, cfg) -> None:
     ph.produce_force_constants()
     ph.save("ase_files/phonopy_params.yaml")
 
-    # Save force constants (N, N, 3, 3) in phonopy convention
-    np.save("ase_files/force_constants.npy", ph.force_constants)
+    C = _force_constants_from_phonopy(ph.force_constants)
+    np.save("ase_files/force_constants.npy", C)
 
     # Build DYNMAT entries from reconstructed phonopy force constants
     # (one entry per irreducible atom/direction, positive displacement)
@@ -219,8 +219,6 @@ def _run_with_symmetry(atoms: Atoms, calc, cfg) -> None:
     dynmat_entries = _make_dynmat_entries_phonopy(atoms, ph, disp_infos, delta)
     n_dynmat = len(dynmat_entries)
 
-    # Dynamical matrix: C_my[i,α,j,β] = ph.force_constants.transpose(0,2,1,3)[i,α,j,β]
-    C = ph.force_constants.transpose(0, 2, 1, 3)  # (N, 3, N, 3)
     freqs, eigvecs = _diagonalize(atoms, C)
 
     # --- Write output files ---
@@ -285,6 +283,21 @@ def _force_constants_brute(
                 C[i, alpha] = -(f_plus - forces_eq) / delta
                 k += 1
     return C
+
+
+def _force_constants_from_phonopy(force_constants: np.ndarray) -> np.ndarray:
+    """Convert phonopy force constants to vasp-mace's saved tensor layout.
+
+    vasp-mace stores force constants as ``C[i, alpha, j, beta]`` with shape
+    ``(N, 3, N, 3)``. Phonopy returns the atom indices next to each other, so
+    symmetry-reduced runs need this transpose to match brute-force runs.
+    """
+    fc = np.asarray(force_constants)
+    if fc.ndim != 4 or fc.shape[0] != fc.shape[1] or fc.shape[2:] != (3, 3):
+        raise ValueError(
+            "phonopy force constants must have shape (N, N, 3, 3); " f"got {fc.shape}"
+        )
+    return fc.transpose(0, 2, 1, 3)
 
 
 def _make_dynmat_entries_brute(

@@ -255,7 +255,7 @@ These expressions are valid for all crystal systems (cubic to triclinic).
 |-----|---------|-------------|
 | `MDALGO` | `3` | `1` = VelocityVerlet: NVE if `ANDERSEN_PROB = 0`, NVT Andersen if `ANDERSEN_PROB > 0`; `2` = NVT Nosé-Hoover; `3` = NVT Langevin (`ISIF=2`) or NPT Langevin (`ISIF=3`) |
 | `TEBEG` | `0.0` | Starting temperature (K). Velocities initialised from Maxwell-Boltzmann distribution |
-| `TEEND` | `-1` | Ending temperature (K) for linear ramp; `-1` = same as `TEBEG` (constant temperature) |
+| `TEEND` | `-1` | Ending thermostat target (K) for linear ramps in Andersen, Nosé-Hoover, and Langevin MD; `-1` = same as `TEBEG` (constant temperature). Pure NVE uses `TEBEG` only for initial velocities |
 | `POTIM` | `0.5` | MD timestep (fs). Use ≤ 1.0 fs for systems containing hydrogen |
 | `NBLOCK` | `1` | Write XDATCAR frame and trajectory snapshot every `NBLOCK` steps |
 | `ANDERSEN_PROB` | `0.0` | Collision probability for Andersen thermostat (`MDALGO = 1`) |

@@ -30,7 +30,9 @@ import numpy as np
 from tests._heat_flux_fixtures import build_pbte_fixture
 
 
-REFERENCE_PATH = Path(__file__).resolve().parent / "data" / "mace_unfolded_reference.npz"
+REFERENCE_PATH = (
+    Path(__file__).resolve().parent / "data" / "mace_unfolded_reference.npz"
+)
 
 
 def _compute_reference_flux(model_path: str) -> np.ndarray:

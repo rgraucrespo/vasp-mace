@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Formatted the remaining Python files so `black --check vasp_mace tests scripts`
+  passes.
+- Ignored local-only heat-flux tarball artifacts and session handoff prompt
+  files so they no longer appear as untracked repository changes.
+
+### Fixed
+- Raised the ASE dependency floor to `3.24.0` because `vasp_mace.md`
+  imports `ase.md.nose_hoover_chain.NoseHooverChainNVT`, which is absent in
+  ASE `3.22.x` and `3.23.x`.
+- Synced `vasp_mace.__version__` with the `pyproject.toml` package version and
+  added a packaging regression test for version drift.
+- `TEEND` temperature ramps now update Andersen, Nosé-Hoover, and Langevin
+  thermostat targets instead of applying only to Langevin runs; pure NVE now
+  warns because there is no thermostat target to ramp.
+- Symmetry-reduced phonon runs now save `ase_files/force_constants.npy` with
+  the same `(N, 3, N, 3)` layout as brute-force phonon runs, matching the
+  documented `C[i, alpha, j, beta]` convention.
+- NEB now rejects non-negative `SPRING` values at parse/driver entry instead
+  of silently converting them with `abs(SPRING)`, matching the documented
+  negative-`SPRING` VASP NEB convention.
+
 ## [2.5.1] - 2026-05-26
 
 ### Documentation
@@ -204,7 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.5.1...HEAD
+[2.5.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.3.0...v2.3.1
