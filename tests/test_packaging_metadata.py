@@ -56,7 +56,7 @@ class PackagingMetadataTests(unittest.TestCase):
 
     def test_ase_dependency_floor_includes_nose_hoover_chain_api(self) -> None:
         text = (REPO_ROOT / "pyproject.toml").read_text()
-        match = re.search(r'"ase>=([^"]+)"', text)
+        match = re.search(r'"ase>=([0-9][0-9.]*)', text)
         self.assertIsNotNone(match, "pyproject.toml must declare an ASE floor")
         assert match is not None
         floor = _version_tuple(match.group(1))
@@ -65,6 +65,7 @@ class PackagingMetadataTests(unittest.TestCase):
             (3, 24, 0),
             "ase.md.nose_hoover_chain is not present before ASE 3.24.0",
         )
+        self.assertIn("<4", text, "ASE dependency should cap the major version")
 
     def test_heat_requirements_are_in_sdist_manifest(self) -> None:
         manifest = (REPO_ROOT / "MANIFEST.in").read_text()

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The Nosé-Hoover chain `TEEND` ramp now rescales the existing thermostat
+  masses by the temperature ratio (`Q ∝ kT`) instead of reproducing ASE's
+  internal mass-matrix formula, so it stays correct across ASE versions that
+  change the degrees-of-freedom count or `tdamp` convention.
+- Capped the ASE dependency at `<4` so a major ASE release is a deliberate
+  opt-in rather than silently exercising untested thermostat internals.
+
 ## [2.6.0] - 2026-06-16
 
 ### Changed

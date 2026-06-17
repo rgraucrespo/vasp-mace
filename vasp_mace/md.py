@@ -213,20 +213,20 @@ def _set_dynamics_temperature(dyn: Any, temperature_K: float) -> bool:
     if thermostat is None:
         return False
 
-    n_atoms = getattr(
-        thermostat, "_num_atoms_global", getattr(thermostat, "_num_atoms", None)
-    )
-    if (
-        n_atoms is None
-        or not hasattr(thermostat, "_kT")
-        or not hasattr(thermostat, "_Q")
-        or not hasattr(thermostat, "_tdamp")
-    ):
+    if not hasattr(thermostat, "_kT") or not hasattr(thermostat, "_Q"):
         return False
 
-    thermostat._kT = kB * float(temperature_K)
-    thermostat._Q[0] = 3 * int(n_atoms) * thermostat._kT * thermostat._tdamp**2
-    thermostat._Q[1:] = thermostat._kT * thermostat._tdamp**2
+    # The Nosé-Hoover chain masses are linear in temperature
+    # (``Q = N_f * kB * T * tdamp**2``), so rescale the existing ``_Q`` array by
+    # the temperature ratio rather than reproducing ASE's internal formula. This
+    # stays correct regardless of how ASE counts degrees of freedom or defines
+    # ``tdamp``; we only rely on the exact proportionality ``Q ∝ kT``.
+    old_kT = float(thermostat._kT)
+    if old_kT <= 0.0:
+        return False
+    new_kT = kB * float(temperature_K)
+    thermostat._Q *= new_kT / old_kT
+    thermostat._kT = new_kT
     return True
 
 

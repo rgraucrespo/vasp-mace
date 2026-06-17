@@ -44,30 +44,39 @@ class MDTemperatureRampTests(unittest.TestCase):
         self.assertTrue(_set_dynamics_temperature(dyn, 250.0))
         self.assertEqual(dyn.temp_K, 250.0)
 
-    def test_set_temperature_updates_nose_hoover_chain_target(self) -> None:
+    @staticmethod
+    def _make_nhc(temperature_K: float, tdamp: float) -> NoseHooverChainNVT:
+        # Three atoms so the chain mass depends on a non-trivial dof count;
+        # a single atom would hide a wrong degrees-of-freedom factor.
         atoms = Atoms(
-            "Ar",
-            positions=[[0.0, 0.0, 0.0]],
-            masses=[39.948],
+            "Ar3",
+            positions=[[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [0.0, 3.0, 0.0]],
+            masses=[39.948, 39.948, 39.948],
             cell=[10.0, 10.0, 10.0],
             pbc=True,
         )
-        atoms.set_velocities(np.zeros((1, 3)))
-        tdamp = 10.0 * ASE_FS
-        dyn = NoseHooverChainNVT(
+        atoms.set_velocities(np.zeros((3, 3)))
+        return NoseHooverChainNVT(
             atoms,
             timestep=1.0 * ASE_FS,
-            temperature_K=100.0,
+            temperature_K=temperature_K,
             tdamp=tdamp,
         )
+
+    def test_set_temperature_updates_nose_hoover_chain_target(self) -> None:
+        tdamp = 10.0 * ASE_FS
+        # Build the thermostat at the start temperature, ramp it, and compare
+        # against a thermostat ASE constructs directly at the target. This
+        # catches drift in ASE's mass-matrix formula without reproducing it.
+        dyn = self._make_nhc(100.0, tdamp)
+        reference = self._make_nhc(300.0, tdamp)
 
         self.assertTrue(_set_dynamics_temperature(dyn, 300.0))
 
         thermostat = dyn._thermostat
-        expected_kT = kB * 300.0
-        self.assertAlmostEqual(thermostat._kT, expected_kT)
-        self.assertAlmostEqual(thermostat._Q[0], 3 * expected_kT * tdamp**2)
-        np.testing.assert_allclose(thermostat._Q[1:], expected_kT * tdamp**2)
+        self.assertAlmostEqual(thermostat._kT, kB * 300.0)
+        self.assertAlmostEqual(thermostat._kT, reference._thermostat._kT)
+        np.testing.assert_allclose(thermostat._Q, reference._thermostat._Q)
 
     def test_set_temperature_returns_false_for_unsupported_dynamics(self) -> None:
         self.assertFalse(_set_dynamics_temperature(object(), 250.0))
