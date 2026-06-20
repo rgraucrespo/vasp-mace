@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Pinned the development Black dependency so CI formatting checks use the same
+  formatter version as the repository.
+
 ## [2.7.0] - 2026-06-20
 
 ### Added

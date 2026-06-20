@@ -57,7 +57,7 @@ phonons = [
 ]
 dev = [
   "pytest",
-  "black",
+  "black==24.8.0",
   "ruff",
   "mypy",
 ]
