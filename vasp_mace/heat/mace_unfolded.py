@@ -3,7 +3,7 @@
 Thin adapter around
 :class:`mace_unfolded.unfolded_heat.unfolder_calculator.UnfoldedHeatFluxCalculator`
 exposed through the :class:`vasp_mace.heat.heat_flux.HeatFluxCalculator`
-interface. Install the underlying packages from ``requirements-heat.txt`` in a
+interface. Install the underlying packages from ``requirements/heat.txt`` in a
 source checkout, or directly from their GitHub repositories.
 
 This implements the *potential* term of the heat flux only. For non-diffusive

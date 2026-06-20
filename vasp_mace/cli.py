@@ -16,6 +16,7 @@ from .io_vasp import (
     write_contcar,
     write_relax_vasprun_xml,
     write_single_vasprun_xml,
+    write_md_oszicar,
 )
 from .logging_utils import StepRecord
 from .mace_loader import load_calc
@@ -178,6 +179,8 @@ def _run() -> None:
         elif cfg.MDALGO == 3:
             gamma_str = " ".join(str(g) for g in cfg.LANGEVIN_GAMMA)
             extra_info = f", LANGEVIN_GAMMA={gamma_str} ps⁻¹"
+        if cfg.RANDOM_SEED is not None:
+            extra_info += f", RANDOM_SEED={cfg.RANDOM_SEED}"
 
         print(
             f"[info] Model={args.model}, device={device}, dtype={dtype}, "
@@ -191,9 +194,10 @@ def _run() -> None:
         )
         elapsed = time.time() - t0_wall
         cpu_t = time.process_time() - t0_cpu
+        write_md_oszicar("OSZICAR", records)
         write_contcar("CONTCAR", atoms)
         write_outcar_tail("OUTCAR", elapsed, cpu_t)
-        outputs = "XDATCAR, CONTCAR, OUTCAR"
+        outputs = "XDATCAR, CONTCAR, OUTCAR, OSZICAR"
         if cfg.ML_LHEAT:
             outputs += ", ML_HEAT, ase_files/ML_HEAT.json"
         print(f"[done] MD complete ({len(records)} steps). Wrote {outputs}.")

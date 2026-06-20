@@ -28,7 +28,7 @@ Output (per image directory):
 
 Shared output:
   ase_files/neb_opt.log   — optimizer log
-  ase_files/mace.traj     — ASE trajectory (all intermediate images, all steps)
+  ase_files/mace.traj     — final NEB band (one frame per image)
 """
 
 from __future__ import annotations
@@ -233,6 +233,11 @@ def run_neb(
         raise ValueError(
             f"SPRING={cfg.SPRING} is not supported for NEB in vasp-mace. "
             "Use a negative SPRING value (VASP NEB convention), e.g. SPRING=-5."
+        )
+    if cfg.NSW < 1:
+        raise ValueError(
+            f"NSW={cfg.NSW} is not supported for NEB in vasp-mace. "
+            "Use NSW >= 1 so at least one NEB optimization step is logged."
         )
 
     climb = cfg.LCLIMB

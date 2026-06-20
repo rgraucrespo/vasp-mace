@@ -74,7 +74,7 @@ SMOKE_CASES = (
             NBLOCK = 1
             SMASS  = 1.0
         """,
-        outputs=("CONTCAR", "OUTCAR", "XDATCAR", "ase_files/mace.traj"),
+        outputs=("CONTCAR", "OUTCAR", "OSZICAR", "XDATCAR", "ase_files/mace.traj"),
         tags=("all",),
     ),
     SmokeCase(
@@ -148,7 +148,7 @@ SMOKE_CASES = (
             ISIF           = 2
             LANGEVIN_GAMMA = 10.0 20.0
         """,
-        outputs=("CONTCAR", "OUTCAR", "XDATCAR", "ase_files/mace.traj"),
+        outputs=("CONTCAR", "OUTCAR", "OSZICAR", "XDATCAR", "ase_files/mace.traj"),
         tags=("all",),
     ),
     SmokeCase(
@@ -212,6 +212,7 @@ SMOKE_CASES = (
         outputs=(
             "CONTCAR",
             "OUTCAR",
+            "OSZICAR",
             "XDATCAR",
             "ML_HEAT",
             "ase_files/ML_HEAT.json",

@@ -61,6 +61,7 @@ class LangevinNPT(MolecularDynamics):
         friction: np.ndarray,
         barostat_friction: float,
         piston_mass: float,
+        rng: Optional[Any] = None,
         logfile: Optional[str] = None,
         trajectory: Optional[Any] = None,
         loginterval: int = 1,
@@ -77,7 +78,7 @@ class LangevinNPT(MolecularDynamics):
         )
         self.W = piston_mass  # eV * fs^2
         self.v_eps = 0.0  # strain rate
-        self.rng = np.random.default_rng()
+        self.rng = rng if rng is not None else np.random.default_rng()
 
     def step(self, forces: Optional[np.ndarray] = None) -> np.ndarray:
         """Advance the NPT trajectory by one integration step.
@@ -188,6 +189,14 @@ def _temperature_target(start_K: float, end_K: float, step: int, nsteps: int) ->
         return float(start_K)
     frac = (step - 1) / (nsteps - 1)
     return float(start_K + frac * (end_K - start_K))
+
+
+def _instantaneous_temperature(atoms: Atoms, kinetic_energy: float) -> float:
+    """Return instantaneous temperature using ASE's constrained DOF count."""
+    dof = atoms.get_number_of_degrees_of_freedom()
+    if dof <= 0:
+        return 0.0
+    return float(2.0 * kinetic_energy / (dof * kB))
 
 
 def _set_dynamics_temperature(dyn: Any, temperature_K: float) -> bool:
@@ -350,8 +359,17 @@ def run_md(
     md_log = os.path.join(ASE_OUT_DIR, "md.log")
     traj_path = os.path.join(ASE_OUT_DIR, "mace.traj")
 
-    # Initialise velocities from Maxwell-Boltzmann at TEBEG
-    MaxwellBoltzmannDistribution(atoms, temperature_K=T_start)
+    rng = (
+        np.random.default_rng(cfg.RANDOM_SEED) if cfg.RANDOM_SEED is not None else None
+    )
+
+    existing_velocities = atoms.get_velocities()
+    has_initial_velocities = existing_velocities is not None and np.any(
+        np.asarray(existing_velocities, dtype=float) != 0.0
+    )
+    if not has_initial_velocities:
+        # Initialise velocities from Maxwell-Boltzmann at TEBEG
+        MaxwellBoltzmannDistribution(atoms, temperature_K=T_start, rng=rng)
 
     # Create integrator
     if cfg.MDALGO == 1:
@@ -362,6 +380,7 @@ def run_md(
                 timestep=cfg.POTIM * ASE_FS,
                 temperature_K=T_start,
                 andersen_prob=cfg.ANDERSEN_PROB,
+                rng=rng,
                 logfile=md_log,
             )
         else:
@@ -407,6 +426,7 @@ def run_md(
                 barostat_friction=friction_L_fs
                 / ASE_FS,  # lattice friction: fs^-1 -> ASE_time^-1
                 piston_mass=piston_mass,
+                rng=rng,
                 logfile=md_log,
             )
         else:
@@ -416,6 +436,7 @@ def run_md(
                 timestep=cfg.POTIM * ASE_FS,
                 temperature_K=T_start,
                 friction=friction_per_atom_ase.reshape(-1, 1),
+                rng=rng,
                 logfile=md_log,
             )
     else:
@@ -513,8 +534,7 @@ def run_md(
 
             E_pot = atoms.get_potential_energy()
             E_kin = atoms.get_kinetic_energy()
-            # Instantaneous temperature from kinetic energy: T = 2*Ekin / (3*N*kB)
-            T_inst = 2.0 * E_kin / (3.0 * N * kB)
+            T_inst = _instantaneous_temperature(atoms, E_kin)
             E_tot = E_pot + E_kin
 
             rec = MDRecord(

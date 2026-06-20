@@ -16,6 +16,7 @@ from .io_poscar import (
 )
 from .io_outcar import (
     write_oszicar,
+    write_md_oszicar,
     write_outcar,
     write_outcar_tail,
     write_outcar_like,
@@ -33,6 +34,7 @@ __all__ = [
     "write_xdatcar_header",
     "append_xdatcar_frame",
     "write_oszicar",
+    "write_md_oszicar",
     "write_outcar",
     "write_outcar_tail",
     "write_outcar_like",

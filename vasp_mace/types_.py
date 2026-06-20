@@ -1,7 +1,7 @@
 """Shared dataclasses used by vasp-mace run modes."""
 
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 
@@ -59,6 +59,10 @@ class IncarConfig:
         ``LANGEVIN_GAMMA`` is absent.
     PMASS
         NPT piston mass in amu. ``0`` requests the automatic default.
+    RANDOM_SEED
+        Optional non-negative integer seed for MD velocity initialization and
+        stochastic thermostats/barostats. ``None`` keeps ASE's default
+        non-deterministic random source.
     NFREE
         Number of finite-difference displacements per phonon degree of freedom:
         ``1`` for forward differences or ``2`` for central differences.
@@ -103,6 +107,9 @@ class IncarConfig:
     SMASS: float  # MD: Nose-Hoover mass or Langevin friction (ps^-1); <=0 uses default 0.01 fs^-1
     PMASS: float = (
         0.0  # MD: piston mass (amu) for Langevin NPT; 0 = auto (N × 10000 amu)
+    )
+    RANDOM_SEED: Optional[int] = (
+        None  # MD: optional RNG seed for velocities/thermostats
     )
     NFREE: int = 2  # phonons: displacements per DOF (1 = +only, 2 = ±central)
     IMAGES: int = 0  # NEB: number of intermediate images

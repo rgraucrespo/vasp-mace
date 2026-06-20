@@ -6,7 +6,7 @@ and the backend-independent heat-flux calculator interface used to compute
 the per-step flux. The default
 backend (:class:`vasp_mace.heat.mace_unfolded.MACEUnfoldedHeatFluxCalculator`)
 wraps `mace-unfolded <https://github.com/pulgon-project/mace-unfolded>`_ and is
-opt-in via the repository's ``requirements-heat.txt`` file because the backend
+opt-in via the repository's ``requirements/heat.txt`` file because the backend
 dependencies are currently GitHub-only.
 
 Post-processing of ``ML_HEAT`` into thermal conductivity is intentionally out

@@ -6,6 +6,7 @@ import numpy as np
 from ase import Atoms
 
 from .logging_utils import StepRecord
+from .types_ import MDRecord
 
 _EV_A3_TO_KB = 1602.1766  # 1 eV/Å³ → kBar
 
@@ -67,6 +68,29 @@ def write_oszicar(path: str, steps: List[StepRecord]) -> None:
             dE_val = s.energy if s.n == 1 else s.dE
             dE_str = _fmt_fort(dE_val, 6)
             f.write(f"   {s.n:3d} F= {E_str} E0= {E_str}  d E ={dE_str}\n")
+
+
+def write_md_oszicar(path: str, records: List[MDRecord]) -> None:
+    """Write a VASP-style MD OSZICAR summary file.
+
+    Parameters
+    ----------
+    path
+        Destination OSZICAR path.
+    records
+        Per-step MD records containing potential energy, kinetic energy, and
+        instantaneous temperature.
+    """
+    with open(path, "w") as f:
+        for rec in records:
+            e_tot = rec.energy_pot + rec.energy_kin
+            f.write(
+                f"   {rec.n:3d} T= {rec.temperature:8.2f} "
+                f"E= {_fmt_fort(e_tot, 8)} "
+                f"F= {_fmt_fort(rec.energy_pot, 8)} "
+                f"E0= {_fmt_fort(rec.energy_pot, 8)} "
+                f"EK= {_fmt_fort(rec.energy_kin, 8)}\n"
+            )
 
 
 # ---------------------------------------------------------------------------

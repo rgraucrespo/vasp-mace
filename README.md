@@ -76,10 +76,10 @@ pip install git+https://github.com/sirmarcel/comms.git
 pip install git+https://github.com/pulgon-project/mace-unfolded.git
 ```
 
-From a source checkout, the same optional dependencies are listed in `requirements-heat.txt`:
+From a source checkout, the same optional dependencies are listed in `requirements/heat.txt`:
 
 ```bash
-pip install -r requirements-heat.txt
+pip install -r requirements/heat.txt
 ```
 
 There is deliberately no `vasp-mace[heat]` extra on PyPI because public package metadata should not contain direct Git URL dependencies.
@@ -254,8 +254,9 @@ These expressions are valid for all crystal systems (cubic to triclinic).
 | Tag | Default | Description |
 |-----|---------|-------------|
 | `MDALGO` | `3` | `1` = VelocityVerlet: NVE if `ANDERSEN_PROB = 0`, NVT Andersen if `ANDERSEN_PROB > 0`; `2` = NVT Nosé-Hoover; `3` = NVT Langevin (`ISIF=2`) or NPT Langevin (`ISIF=3`) |
-| `TEBEG` | `0.0` | Starting temperature (K). Velocities initialised from Maxwell-Boltzmann distribution |
+| `TEBEG` | `0.0` | Starting temperature (K). Velocities initialised from Maxwell-Boltzmann distribution unless the input `Atoms` already carries nonzero velocities |
 | `TEEND` | `-1` | Ending thermostat target (K) for linear ramps in Andersen, Nosé-Hoover, and Langevin MD; `-1` = same as `TEBEG` (constant temperature). Pure NVE uses `TEBEG` only for initial velocities |
+| `RANDOM_SEED` | unset | Optional non-negative integer seed for MD velocity initialisation and stochastic Andersen/Langevin/NPT random terms |
 | `POTIM` | `0.5` | MD timestep (fs). Use ≤ 1.0 fs for systems containing hydrogen |
 | `NBLOCK` | `1` | Write XDATCAR frame and trajectory snapshot every `NBLOCK` steps |
 | `ANDERSEN_PROB` | `0.0` | Collision probability for Andersen thermostat (`MDALGO = 1`) |
@@ -446,6 +447,7 @@ While `vasp-mace` aims for a high degree of compatibility, there are important t
 | File | Description |
 |------|-------------|
 | `CONTCAR` | Final structure |
+| `OSZICAR` | Per-step temperature, total energy, potential energy, and kinetic energy |
 | `XDATCAR` | Trajectory in fractional coordinates (written every `NBLOCK` steps) |
 | `ML_HEAT` | Per-step heat-flux vector (VASP-compatible format, `eV·Å·fs⁻¹`). Only written when `ML_LHEAT = .TRUE.` |
 | `ase_files/mace.traj` | Full ASE binary trajectory |

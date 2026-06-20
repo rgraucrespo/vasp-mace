@@ -17,17 +17,20 @@ def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True) -> 
     path
         POSCAR-like file to read.
     apply_selective_dynamics
-        If ``True``, convert VASP Selective Dynamics flags into ASE
-        ``FixCartesian`` constraints so relaxations respect fixed components.
+        If ``True``, keep or create ASE constraints from VASP Selective
+        Dynamics flags so relaxations respect fixed components. If ``False``,
+        constraints created from the POSCAR are cleared after reading.
 
     Returns
     -------
     ase.Atoms
-        Structure read from ``path``. When Selective Dynamics flags are present,
-        the original boolean array is preserved in
-        ``atoms.arrays["selective_dynamics"]``.
+        Structure read from ``path``.
     """
     atoms = read(path)
+
+    if not apply_selective_dynamics:
+        atoms.set_constraint([])
+        return atoms
 
     if apply_selective_dynamics and "selective_dynamics" in atoms.arrays:
         sd = np.asarray(
@@ -35,10 +38,11 @@ def read_poscar(path: str = "POSCAR", apply_selective_dynamics: bool = True) -> 
         )  # shape (N,3), T=free, F=fixed
         constraints = []
 
-        for i, flags in enumerate(sd):
-            fixed_mask = ~flags  # True where component is FIXED
-            if fixed_mask.any():
-                constraints.append(FixCartesian(fixed_mask, indices=[i]))
+        if not atoms.constraints:
+            for i, flags in enumerate(sd):
+                fixed_mask = ~flags  # True where component is FIXED
+                if fixed_mask.any():
+                    constraints.append(FixCartesian(i, mask=fixed_mask))
 
         if constraints:
             existing = atoms.constraints

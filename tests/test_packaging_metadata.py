@@ -69,7 +69,7 @@ class PackagingMetadataTests(unittest.TestCase):
 
     def test_heat_requirements_are_in_sdist_manifest(self) -> None:
         manifest = (REPO_ROOT / "MANIFEST.in").read_text()
-        self.assertIn("include requirements-heat.txt", manifest)
+        self.assertIn("include requirements/heat.txt", manifest)
 
 
 if __name__ == "__main__":

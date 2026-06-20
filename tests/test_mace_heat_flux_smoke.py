@@ -6,7 +6,7 @@ Skipped unless all of the following hold:
   :class:`tests.test_examples.ExampleSmokeTests`).
 * ``MACE_MODEL_PATH`` points at a readable MACE checkpoint.
 * The optional ``mace_unfolded`` package is importable
-  (``pip install -r requirements-heat.txt`` from a source checkout).
+  (``pip install -r requirements/heat.txt`` from a source checkout).
 
 The test asserts only that the backend returns a finite, length-3 heat-flux
 vector for the shared PbTe fixture (see :mod:`tests._heat_flux_fixtures`).
@@ -40,7 +40,7 @@ class MACEUnfoldedHeatFluxSmokeTests(unittest.TestCase):
         if importlib.util.find_spec("mace_unfolded") is None:
             self.skipTest(
                 "mace_unfolded not installed; install with "
-                "`pip install -r requirements-heat.txt` from a source checkout"
+                "`pip install -r requirements/heat.txt` from a source checkout"
             )
         self.model_path = model
 

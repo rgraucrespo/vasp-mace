@@ -6,10 +6,15 @@ import unittest
 
 import numpy as np
 from ase import Atoms
+from ase.constraints import FixAtoms
 from ase.md.nose_hoover_chain import NoseHooverChainNVT
 from ase.units import fs as ASE_FS, kB
 
-from vasp_mace.md import _set_dynamics_temperature, _temperature_target
+from vasp_mace.md import (
+    _instantaneous_temperature,
+    _set_dynamics_temperature,
+    _temperature_target,
+)
 
 
 class _SetTemperatureDynamics:
@@ -33,6 +38,28 @@ class MDTemperatureRampTests(unittest.TestCase):
 
     def test_temperature_target_single_step_uses_start(self) -> None:
         self.assertEqual(_temperature_target(100.0, 300.0, 1, 1), 100.0)
+
+    def test_instantaneous_temperature_uses_ase_dof_count(self) -> None:
+        atoms = Atoms(
+            "Ar2",
+            positions=[[0.0, 0.0, 0.0], [3.0, 0.0, 0.0]],
+            masses=[39.948, 39.948],
+        )
+        atoms.set_velocities([[0.0, 0.0, 0.0], [0.02, 0.03, 0.04]])
+        atoms.set_constraint(FixAtoms(indices=[0]))
+        kinetic = atoms.get_kinetic_energy()
+
+        self.assertEqual(atoms.get_number_of_degrees_of_freedom(), 3)
+        self.assertAlmostEqual(
+            _instantaneous_temperature(atoms, kinetic),
+            2.0 * kinetic / (3.0 * kB),
+        )
+
+    def test_instantaneous_temperature_returns_zero_for_no_dof(self) -> None:
+        atoms = Atoms("Ar", positions=[[0.0, 0.0, 0.0]], masses=[39.948])
+        atoms.set_constraint(FixAtoms(indices=[0]))
+
+        self.assertEqual(_instantaneous_temperature(atoms, 1.0), 0.0)
 
     def test_set_temperature_uses_public_setter(self) -> None:
         dyn = _SetTemperatureDynamics()

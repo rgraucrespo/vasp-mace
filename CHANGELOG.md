@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `RANDOM_SEED` INCAR support for reproducible MD velocity initialization and
+  stochastic Andersen/Langevin/NPT random terms.
+- MD runs now write a VASP-style `OSZICAR` with per-step temperature, total
+  energy, potential energy, and kinetic energy.
+- GitHub Actions CI for Python 3.9-3.12 that checks Black formatting and runs
+  the default test suite on pushes and pull requests.
+
+### Changed
+- Moved optional heat-backend dependency pins from root-level
+  `requirements-heat.txt` to `requirements/heat.txt`.
+
+### Fixed
+- INCAR parsing now accepts Fortran-style `D`/`d` exponents for supported
+  numeric tags and raises a clear `ValueError` for malformed supported tag
+  values instead of silently falling back to defaults.
+- NEB now rejects `IMAGES > 0` with `NSW < 1` at parse/driver entry so runs do
+  not fail later while writing empty per-image outputs.
+- MD temperature reporting now uses ASE's constrained degrees-of-freedom count
+  instead of assuming `3 × N` mobile Cartesian components.
+- `run_md` now preserves pre-existing nonzero velocities on programmatic
+  `Atoms` inputs instead of always replacing them with a Maxwell-Boltzmann draw.
+- `read_poscar(..., apply_selective_dynamics=False)` now actually clears
+  Selective Dynamics constraints created by ASE, and the fallback
+  `FixCartesian` construction for raw Selective Dynamics arrays uses the
+  correct ASE API.
+- The NEB module documentation now describes `ase_files/mace.traj` as the final
+  NEB band, matching the implementation and README.
+
 ## [2.6.1] - 2026-06-17
 
 ### Changed
