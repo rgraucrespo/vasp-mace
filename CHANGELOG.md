@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-06-20
+
 ### Added
 - `RANDOM_SEED` INCAR support for reproducible MD velocity initialization and
   stochastic Andersen/Langevin/NPT random terms.
@@ -267,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.1...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.5.0...v2.5.1
