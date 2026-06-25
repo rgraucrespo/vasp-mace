@@ -155,6 +155,43 @@ def _suppress_unfolder_artefact_files(scratch_dir: Optional[str] = None):
         os.chdir(cwd)
 
 
+@contextlib.contextmanager
+def _functorch_safe_requires_grad():
+    """Make ``Tensor.requires_grad_`` a no-op for functorch-wrapped tensors.
+
+    mace-unfolded's forward-mode (``forward=True``) path runs the MACE model
+    under ``functorch.jvp``. Inside ``model.forward``, mace-torch's
+    ``prepare_graph`` (``mace/modules/utils.py``) calls
+    ``data["positions"].requires_grad_(True)``. Calling ``requires_grad_()``
+    in-place on a functorch-wrapped (dual) tensor raises ``RuntimeError`` —
+    "attempting to call Tensor.requires_grad_() ... inside of a function being
+    transformed by a functorch transform". Forward-mode AD propagates the
+    tangent without that flag, so skipping the call for wrapped tensors is
+    correct; ordinary (unwrapped) tensors are passed through unchanged, so the
+    patch is a no-op outside a functorch transform.
+
+    Scoped to the wrapped block and fully restored on exit. This handles only
+    the functorch incompatibility; mace-unfolded's forward path has a separate
+    upstream bug (its results dict unconditionally serialises the ``sigma_*``
+    terms, which are ``None`` in forward mode) that is not worked around here.
+    """
+    import torch
+    from torch._C._functorch import is_functorch_wrapped_tensor
+
+    original = torch.Tensor.requires_grad_
+
+    def _safe(self, requires_grad: bool = True):
+        if is_functorch_wrapped_tensor(self):
+            return self
+        return original(self, requires_grad)
+
+    torch.Tensor.requires_grad_ = _safe
+    try:
+        yield
+    finally:
+        torch.Tensor.requires_grad_ = original
+
+
 def _tensor_to_numpy_1d(value: Any) -> np.ndarray:
     """Convert a torch/numpy/list vector to a 1-D float64 NumPy array."""
     if hasattr(value, "detach"):
@@ -234,17 +271,20 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         values relax the bound and are intended only for unit tests.
     forward
         Whether to use forward-mode autodiff inside ``mace-unfolded``.
-        Defaults to ``False`` (reverse-mode, three ``grad`` passes per call)
-        because the forward-mode (``functorch.jvp``) path in mace-unfolded
-        currently fails with ``mace-torch`` ≥ 0.3.10: ``mace.modules.utils
-        .prepare_graph`` calls ``data["positions"].requires_grad_(True)``
-        inside ``model.forward``, which functorch transforms forbid.
-        ``forward=True`` is the upstream production-script default and is
-        several times faster when it works, so keep it on the radar — once
-        the upstream incompatibility is patched (vendor a compatible
-        ``mace-torch`` pin, or a fix lands in mace-unfolded), flip the
-        default. Reverse mode is workable on a GPU; on CPU it can take
-        many minutes per call for the cell sizes the unfolder requires.
+        Defaults to ``False`` (reverse-mode, three ``grad`` passes per call).
+        When ``True``, :meth:`compute` wraps the upstream call in
+        :func:`_functorch_safe_requires_grad` to neutralise the
+        ``functorch.jvp`` incompatibility with ``mace-torch`` ≥ 0.3.10
+        (``mace.modules.utils.prepare_graph`` calls
+        ``data["positions"].requires_grad_(True)`` inside ``model.forward``,
+        which functorch transforms forbid). That fixes the *first* upstream
+        blocker only: mace-unfolded's forward path still crashes while
+        building its results dict because it serialises the ``sigma_*`` terms
+        unconditionally and they are ``None`` in forward mode. So
+        ``forward=True`` is not yet usable end-to-end without an upstream fix
+        (or a vendored ``calculate`` override). When verified — and benchmarked
+        as actually faster on the target GPU; on CPU/float64 it measured no
+        speedup over reverse mode — the default could be flipped.
     torch_model
         Optional raw MACE torch model, typically ``main_calc.models[0]`` from
         the ASE calculator already attached to the MD atoms. Supplying this
@@ -398,7 +438,16 @@ class MACEUnfoldedHeatFluxCalculator(HeatFluxCalculator):
         atoms_for_calc = atoms.copy()
         atoms_for_calc.set_velocities(v)
 
-        with _suppress_unfolder_artefact_files(self._scratch.name):
+        # Forward mode runs the model under functorch.jvp, which forbids the
+        # in-place ``requires_grad_`` that mace-torch's ``prepare_graph`` does
+        # inside ``model.forward``; neutralise it for the duration of the call.
+        # Reverse mode (the default) needs nothing, so leave it untouched.
+        grad_ctx = (
+            _functorch_safe_requires_grad()
+            if self._forward
+            else contextlib.nullcontext()
+        )
+        with _suppress_unfolder_artefact_files(self._scratch.name), grad_ctx:
             results = self._unf.calculate(atoms_for_calc)
 
         # Prefer the extensive numerator directly. Upstream also returns

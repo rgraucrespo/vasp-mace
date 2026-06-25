@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pinned the development Black dependency so CI formatting checks use the same
   formatter version as the repository.
 
+### Changed
+- Heat-flux backend: when `forward=True`, the `mace-unfolded` call is now
+  wrapped so `mace-torch`'s in-place `requires_grad_` inside `functorch.jvp`
+  no longer raises. This clears the first of two upstream blockers on
+  forward-mode autodiff; the default stays `forward=False` (reverse mode),
+  which is unchanged, because mace-unfolded's forward path still crashes
+  serialising its `None` `sigma_*` terms. Verified numerically identical to
+  reverse mode (to machine precision) once that second bug is patched.
+
 ## [2.7.0] - 2026-06-20
 
 ### Added
