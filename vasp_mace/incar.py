@@ -206,19 +206,13 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         )
         isif = 2
 
-    # Validate IVDW. IVDW=13 selects DFT-D4 (VASP >= 6.2, external package).
-    # D4 support is being added to vasp-mace on top of the `dftd4` backend but
-    # is not wired yet, so reject it explicitly with an accurate message rather
-    # than the previous (incorrect) "D3 + ATM three-body" label.
-    if ivdw == 13:
-        raise ValueError(
-            "IVDW=13 (DFT-D4) is not yet implemented in vasp-mace. "
-            "Use IVDW=11 (D3-zero) or IVDW=12 (D3-BJ) for dispersion."
-        )
-    if ivdw not in (0, 11, 12):
+    # Validate IVDW. 11/12 are DFT-D3 (zero / Becke-Johnson damping) via
+    # torch-dftd; 13 is DFT-D4 (VASP >= 6.2) via the dftd4 backend. The xc
+    # functional is fixed to PBE for all of them.
+    if ivdw not in (0, 11, 12, 13):
         raise ValueError(
             f"IVDW={ivdw} is not supported. "
-            f"Supported values: 0 (none), 11 (D3-zero), 12 (D3-BJ)."
+            f"Supported values: 0 (none), 11 (D3-zero), 12 (D3-BJ), 13 (D4)."
         )
 
     nfree = _get_int(raw, "NFREE", 2)

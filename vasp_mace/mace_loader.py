@@ -7,13 +7,19 @@ from typing import Any, Optional, Tuple
 # vasp_mace/mace_loader.py
 
 
-# IVDW -> torch-dftd damping name. None means "no dispersion".
+# IVDW -> torch-dftd D3 damping name. None means "no dispersion".
 _IVDW_DAMPING = {0: None, 11: "zero", 12: "bj"}
+
+# IVDW value selecting DFT-D4 (VASP >= 6.2), provided by the dftd4 backend.
+_IVDW_D4 = 13
 
 # xc functional passed to torch-dftd. Hardcoded to PBE: vasp-mace MACE models
 # are trained against PBE references, and exposing this as an INCAR tag would
 # invite mismatches with the underlying potential.
 _D3_XC = "pbe"
+
+# DFT-D4 functional, fixed to PBE for the same reason as D3.
+_D4_METHOD = "pbe"
 
 
 def _silenced_import_mace() -> Any:
@@ -54,7 +60,8 @@ def load_calc(
         accelerator devices.
     ivdw
         IVDW selector: ``0`` disables dispersion, ``11`` adds D3 with
-        zero-damping, ``12`` adds D3 with Becke-Johnson damping. Other values
+        zero-damping, ``12`` adds D3 with Becke-Johnson damping, and ``13``
+        adds DFT-D4 via the ``dftd4`` backend (periodic, xc=PBE). Other values
         are rejected by ``parse_incar`` upstream.
 
     Returns
@@ -70,12 +77,12 @@ def load_calc(
     """
     import os
 
-    if ivdw not in _IVDW_DAMPING:
+    if ivdw not in _IVDW_DAMPING and ivdw != _IVDW_D4:
         raise ValueError(
             f"load_calc: IVDW={ivdw} is not supported; expected one of "
-            f"{sorted(_IVDW_DAMPING)}."
+            f"{sorted(_IVDW_DAMPING) + [_IVDW_D4]}."
         )
-    damping = _IVDW_DAMPING[ivdw]
+    damping = _IVDW_DAMPING.get(ivdw)
 
     if not os.path.isfile(model_path):
         raise FileNotFoundError(f"MACE model file not found: {model_path}")
@@ -111,6 +118,8 @@ def load_calc(
 
     def _build_calc(dev, dt):
         mace_calc = _build_mace(dev, dt)
+        if ivdw == _IVDW_D4:
+            return _wrap_with_d4(mace_calc)
         if damping is None:
             return mace_calc
         return _wrap_with_d3(mace_calc, dev, dt, damping)
@@ -154,3 +163,23 @@ def _wrap_with_d3(mace_calc: Any, device: str, dtype: str, damping: str) -> Any:
         cutoff=40.0 * Bohr,
     )
     return SumCalculator([mace_calc, d3_calc])
+
+
+def _wrap_with_d4(mace_calc: Any) -> Any:
+    """Return ``SumCalculator([mace_calc, DFTD4(method="pbe")])``.
+
+    DFT-D4 (``IVDW=13``) is provided by the Fortran-backed ``dftd4`` package,
+    which supports periodic (3D bulk) systems and returns energy, forces, and
+    stress. Unlike the torch D3 backend it runs on CPU and needs no device or
+    dtype. The xc functional is fixed to PBE (see ``_D4_METHOD``).
+    """
+    try:
+        from dftd4.ase import DFTD4
+    except ImportError as exc:
+        raise RuntimeError(
+            "IVDW=13 (DFT-D4) requires the optional dftd4 package. Install it "
+            "with `pip install dftd4` (see requirements/dftd4.txt)."
+        ) from exc
+    from ase.calculators.mixing import SumCalculator
+
+    return SumCalculator([mace_calc, DFTD4(method=_D4_METHOD)])

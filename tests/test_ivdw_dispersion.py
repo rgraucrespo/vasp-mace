@@ -24,6 +24,14 @@ def _torch_dftd_available() -> bool:
     return True
 
 
+def _dftd4_available() -> bool:
+    try:
+        import dftd4  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def _write_incar(tmp: Path, body: str) -> str:
     path = tmp / "INCAR"
     path.write_text(textwrap.dedent(body).strip() + "\n")
@@ -37,13 +45,11 @@ class IVDWIncarParsingTests(unittest.TestCase):
                 cfg = parse_incar(_write_incar(Path(td), f"IVDW = {ivdw}\n"))
                 self.assertEqual(cfg.IVDW, ivdw)
 
-    def test_rejects_d4_not_yet_implemented(self) -> None:
-        # IVDW=13 is DFT-D4 (VASP >= 6.2). Until the dftd4 backend is wired,
-        # parsing must reject it with a D4-specific message, not the old
-        # (incorrect) "ATM three-body" label.
+    def test_accepts_d4(self) -> None:
+        # IVDW=13 is DFT-D4 (VASP >= 6.2), now wired via the dftd4 backend.
         with tempfile.TemporaryDirectory() as td:
-            with self.assertRaisesRegex(ValueError, "D4"):
-                parse_incar(_write_incar(Path(td), "IVDW = 13\n"))
+            cfg = parse_incar(_write_incar(Path(td), "IVDW = 13\n"))
+            self.assertEqual(cfg.IVDW, 13)
 
     def test_rejects_unknown_ivdw(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -100,14 +106,68 @@ class IVDWDispersionPlumbingTests(unittest.TestCase):
         self.assertGreater(max_df, 1.0e-6)
 
 
+@unittest.skipUnless(_dftd4_available(), "dftd4 not installed")
+class IVDWD4PlumbingTests(unittest.TestCase):
+    """Confirm IVDW=13 sums periodic DFT-D4 onto a stub calculator.
+
+    As with the D3 test we bypass the real MACE checkpoint by feeding
+    ``_wrap_with_d4`` an EMT stub; we only check that D4 changes the energy and
+    forces and contributes a periodic stress.
+    """
+
+    def _build_pair(self):
+        from ase import Atoms
+        from ase.calculators.emt import EMT
+        from vasp_mace.mace_loader import _wrap_with_d4
+
+        atoms_bare = Atoms("Cu2", positions=[(0, 0, 0), (3.5, 0, 0)], pbc=False)
+        atoms_d4 = atoms_bare.copy()
+        atoms_bare.calc = EMT()
+        atoms_d4.calc = _wrap_with_d4(EMT())
+        return atoms_bare, atoms_d4
+
+    def test_wrapped_calc_is_sum_calculator(self) -> None:
+        from ase.calculators.emt import EMT
+        from ase.calculators.mixing import SumCalculator
+        from vasp_mace.mace_loader import _wrap_with_d4
+
+        self.assertIsInstance(_wrap_with_d4(EMT()), SumCalculator)
+
+    def test_d4_changes_energy_and_forces(self) -> None:
+        atoms_bare, atoms_d4 = self._build_pair()
+        e_bare = atoms_bare.get_potential_energy()
+        e_d4 = atoms_d4.get_potential_energy()
+        self.assertGreater(abs(e_d4 - e_bare), 1.0e-6)
+
+        f_bare = atoms_bare.get_forces()
+        f_d4 = atoms_d4.get_forces()
+        max_df = float(((f_d4 - f_bare) ** 2).sum(axis=1).max() ** 0.5)
+        self.assertGreater(max_df, 1.0e-6)
+
+    def test_d4_periodic_has_stress(self) -> None:
+        import numpy as np
+        from ase import Atoms
+        from ase.calculators.emt import EMT
+        from vasp_mace.mace_loader import _wrap_with_d4
+
+        atoms = Atoms(
+            "Cu2",
+            positions=[(0, 0, 0), (1.8, 1.8, 1.8)],
+            cell=np.eye(3) * 3.6,
+            pbc=True,
+        )
+        atoms.calc = _wrap_with_d4(EMT())
+        self.assertEqual(atoms.get_stress().shape, (6,))
+
+
 class IVDWLoadCalcSignatureTests(unittest.TestCase):
     def test_load_calc_rejects_unsupported_ivdw(self) -> None:
         from vasp_mace.mace_loader import load_calc
 
         # Use a path that won't exist; we want the IVDW guard to fire before
         # the model file is inspected.
-        with self.assertRaisesRegex(ValueError, "IVDW=13 is not supported"):
-            load_calc("/nonexistent/model.model", ivdw=13)
+        with self.assertRaisesRegex(ValueError, "IVDW=99 is not supported"):
+            load_calc("/nonexistent/model.model", ivdw=99)
 
 
 if __name__ == "__main__":

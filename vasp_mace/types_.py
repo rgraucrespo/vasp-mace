@@ -30,10 +30,10 @@ class IncarConfig:
         Run-mode/optimizer selector: ``0`` for MD, ``1``/``2``/``3`` for
         relaxation optimizers, and ``5``/``6`` for phonons.
     IVDW
-        DFT-D3 dispersion selector. Supported values are ``0`` (none), ``11``
-        (D3 with zero damping), and ``12`` (D3 with Becke-Johnson damping).
-        The xc functional is fixed to PBE. ``13`` selects DFT-D4 (VASP >= 6.2),
-        which is not yet wired and raises on INCAR parse.
+        Dispersion selector. Supported values are ``0`` (none), ``11`` (DFT-D3
+        with zero damping), ``12`` (DFT-D3 with Becke-Johnson damping), and
+        ``13`` (DFT-D4, via the ``dftd4`` backend; periodic/3D-bulk capable).
+        The xc functional is fixed to PBE for all of them.
     TEBEG
         Initial MD temperature in K.
     TEEND
@@ -93,7 +93,7 @@ class IncarConfig:
     ISIF: int  # 2 positions-only, 3 variable-cell, 4 shape+atoms, 7 volume-only, 8 positions+volume
     PSTRESS: float  # pressure in kB
     IBRION: int  # -1 none, 0 MD; relaxation: 1 LBFGS, 2 BFGS, 3 FIRE; NEB: 1/2 MDMin, 3 FIRE
-    IVDW: int  # 0 none, 11 D3(zero), 12 D3(BJ); xc=PBE hardcoded
+    IVDW: int  # 0 none, 11 D3(zero), 12 D3(BJ), 13 D4(dftd4); xc=PBE hardcoded
     TEBEG: float  # MD: starting temperature (K)
     TEEND: float  # MD: ending temperature (K); -1 = same as TEBEG
     POTIM: float  # MD: timestep (fs)

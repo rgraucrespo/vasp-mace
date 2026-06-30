@@ -16,9 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   formatter version as the repository.
 
 ### Added
-- `requirements/dftd4.txt`: optional DFT-D4 dispersion backend (`dftd4`),
-  staged for upcoming `IVDW=13` support. Periodic-capable (3D bulk) and the
-  source of the shared EEQ charges that will also drive implicit solvation.
+- **DFT-D4 dispersion correction** via `IVDW=13` (xc=PBE), backed by the
+  optional `dftd4` package. Periodic-capable, so it works for 3D bulk systems
+  as well as molecules/slabs, and returns energy, forces, and stress. Added on
+  top of the MACE calculator with `SumCalculator`, mirroring the D3 path.
+- `vasp_mace.charges.eeq_charges`: shared EEQ partial-charge engine (from the
+  same `dftd4` backend). Neutral systems only for now; this is the charge
+  source that will also drive the planned implicit-solvation term.
+- `requirements/dftd4.txt`: optional DFT-D4 dispersion backend (`dftd4`).
 
 ### Changed
 - Heat-flux backend: when `forward=True`, the `mace-unfolded` call is now
