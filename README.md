@@ -32,6 +32,8 @@ See [NOTICE.md](NOTICE.md) for the repository-level notice.
 - **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill polycrystalline averages (K, G, E, ν) via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
 - **Selective dynamics**: per-atom coordinate fixing from POSCAR, preserved in CONTCAR
 - **DFT-D3 dispersion correction** via `IVDW` in INCAR (zero-damping and Becke-Johnson variants; xc=PBE)
+- **DFT-D4 dispersion correction** via `IVDW = 13` (periodic, xc=PBE), backed by the `dftd4` package
+- **Implicit solvation** (`LSOL = .TRUE.`) for slabs/clusters: nonpolar SASA cavitation (`TAU`) plus a polar Generalized-Born term (`EB_K`) on shared EEQ charges — a density-free surrogate, not VASPsol
 - **Multiple ISIF modes**: positions-only, full cell relaxation, constant-volume shape relaxation, volume-only
 - **Force-based** (`EDIFFG < 0`) and **energy-based** (`EDIFFG > 0`) convergence criteria
 - **Target pressure** support via `PSTRESS` (ISIF = 3)
@@ -59,11 +61,14 @@ Whatever brings you here, enjoy `vasp-mace`.
 conda create -n vasp_mace_env python=3.11 -y
 conda activate vasp_mace_env
 pip install vasp-mace
-pip install torch-dftd              # optional, only needed for IVDW > 0
+pip install torch-dftd              # optional, only needed for IVDW = 11/12 (D3)
+pip install dftd4                   # optional, only needed for IVDW = 13 (D4) or LSOL (solvation)
 pip install "vasp-mace[phonons]"    # optional, only needed for IBRION = 6
 ```
 
-> **DFT-D3 dispersion** (`IVDW > 0` in INCAR) is provided by [`torch-dftd`](https://github.com/pfnet-research/torch-dftd). The package is pip-installable and not pulled in by default — install it only if you need dispersion corrections. The xc functional is fixed to PBE.
+> **DFT-D3 dispersion** (`IVDW = 11/12` in INCAR) is provided by [`torch-dftd`](https://github.com/pfnet-research/torch-dftd). The package is pip-installable and not pulled in by default — install it only if you need D3. The xc functional is fixed to PBE.
+
+> **DFT-D4 dispersion** (`IVDW = 13`) and **implicit solvation** (`LSOL = .TRUE.`) are provided by the Fortran-backed [`dftd4`](https://github.com/dftd4/dftd4) package (it supplies both the D4 dispersion and the EEQ charges the solvation model uses). Install with `pip install dftd4`; from a source checkout the pin is in `requirements/dftd4.txt`.
 
 > **Symmetry-reduced phonons** (`IBRION = 6`) require [`phonopy`](https://phonopy.github.io/phonopy/). Install via `pip install "vasp-mace[phonons]"` or `pip install phonopy`. Without it, `IBRION = 6` falls back to `IBRION = 5` (no symmetry reduction).
 
@@ -138,7 +143,8 @@ Only the tags relevant to `vasp-mace` are parsed; all others are silently ignore
 | `EDIFFG` | `-0.05` | Convergence criterion. `< 0`: max force (eV/Å); `> 0`: energy change per ion (eV) |
 | `ISIF` | `2` | Degrees of freedom to relax (see table below) |
 | `PSTRESS` | `0.0` | Target hydrostatic pressure in kBar, applied when `ISIF = 3` |
-| `IVDW` | `0` | Empirical dispersion correction (see table below) |
+| `IVDW` | `0` | Empirical dispersion correction: `11`/`12` = DFT-D3, `13` = DFT-D4 (see table below) |
+| `LSOL` | `.FALSE.` | Enable implicit solvation (slab/cluster only; see table below) |
 
 ### ISIF modes
 
@@ -150,15 +156,26 @@ Only the tags relevant to `vasp-mace` are parsed; all others are silently ignore
 | `7` | fixed | fixed | relaxed | Relax only |
 | `8` | relaxed | fixed | relaxed | Relax only |
 
-### IVDW (DFT-D3 dispersion)
+### IVDW (dispersion)
 
 | `IVDW` | Method |
 |--------|--------|
 | `0` | None (default) |
 | `11` | D3(zero-damping) |
 | `12` | D3(Becke-Johnson) |
+| `13` | DFT-D4 |
 
-D3 is added on top of the MACE potential via [`torch-dftd`](https://github.com/pfnet-research/torch-dftd) with `xc = PBE` and a 40 Bohr cutoff. ATM three-body variants (`IVDW = 13/14`) are not yet wired and are rejected at INCAR parse time.
+D3 (`11`/`12`) is added on top of the MACE potential via [`torch-dftd`](https://github.com/pfnet-research/torch-dftd) with `xc = PBE` and a 40 Bohr cutoff. D4 (`13`) is provided by the Fortran-backed [`dftd4`](https://github.com/dftd4/dftd4) package (`xc = PBE`); it is periodic, so it works for 3D bulk as well as molecules and slabs, and contributes energy, forces, and stress. D3 and D4 are mutually exclusive. Other `IVDW` values are rejected at INCAR parse time.
+
+### Implicit solvation (LSOL)
+
+| Tag | Default | Description |
+|-----|---------|-------------|
+| `LSOL` | `.FALSE.` | Enable implicit solvation (nonpolar SASA + polar Generalized-Born), added on top of MACE |
+| `TAU` | `0.525` | Nonpolar surface tension in meV/Å² (VASPsol convention) |
+| `EB_K` | `78.4` | Solvent dielectric constant for the polar term (water ≈ 78.4); `1` disables the polar term |
+
+`vasp-mace` adds a **density-free** implicit-solvation correction — it is **not** VASPsol's Poisson-Boltzmann model. The nonpolar term is `TAU · SASA` (PBC-aware Shrake-Rupley area); the polar term is a Generalized-Born model (Onufriev-Bashford-Case effective Born radii) driven by the shared EEQ charges (the same charges DFT-D4 uses) and `EB_K`. Forces are finite differences of the solvation energy; stress is not yet included. Solvation is restricted to **slabs / clusters / molecules** — a dense 3D-periodic cell with no vacuum is rejected. Requires the optional `dftd4` backend (for the EEQ charges). See `examples/example12_PbS_100_solvation/` for a PbS(100) comparison against VASPsol.
 
 ### Nudged Elastic Band (IMAGES ≥ 1)
 

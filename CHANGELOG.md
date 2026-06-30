@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-06-30
+
 ### Fixed
 - Corrected the `IVDW=13` INCAR validation: it is DFT-D4 (VASP >= 6.2), not
-  "D3 + ATM three-body" as previously labelled. Parsing `IVDW=13` now raises a
-  D4-specific "not yet implemented" error; `IVDW=14` is treated as an ordinary
-  unsupported value. Groundwork for DFT-D4 support via the `dftd4` backend.
+  "D3 + ATM three-body" as previously labelled (`IVDW=13` now selects D4; see
+  Added). `IVDW=14` is treated as an ordinary unsupported value.
 - Pinned the development Black dependency so CI formatting checks use the same
   formatter version as the repository.
 
@@ -320,7 +321,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.7.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.5.1...v2.6.0
