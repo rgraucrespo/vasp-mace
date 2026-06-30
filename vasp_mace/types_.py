@@ -32,8 +32,8 @@ class IncarConfig:
     IVDW
         DFT-D3 dispersion selector. Supported values are ``0`` (none), ``11``
         (D3 with zero damping), and ``12`` (D3 with Becke-Johnson damping).
-        The xc functional is fixed to PBE. ATM three-body terms (``13``/
-        ``14``) are not yet wired and raise on INCAR parse.
+        The xc functional is fixed to PBE. ``13`` selects DFT-D4 (VASP >= 6.2),
+        which is not yet wired and raises on INCAR parse.
     TEBEG
         Initial MD temperature in K.
     TEEND

@@ -8,8 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Corrected the `IVDW=13` INCAR validation: it is DFT-D4 (VASP >= 6.2), not
+  "D3 + ATM three-body" as previously labelled. Parsing `IVDW=13` now raises a
+  D4-specific "not yet implemented" error; `IVDW=14` is treated as an ordinary
+  unsupported value. Groundwork for DFT-D4 support via the `dftd4` backend.
 - Pinned the development Black dependency so CI formatting checks use the same
   formatter version as the repository.
+
+### Added
+- `requirements/dftd4.txt`: optional DFT-D4 dispersion backend (`dftd4`),
+  staged for upcoming `IVDW=13` support. Periodic-capable (3D bulk) and the
+  source of the shared EEQ charges that will also drive implicit solvation.
 
 ### Changed
 - Heat-flux backend: when `forward=True`, the `mace-unfolded` call is now

@@ -206,13 +206,14 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         )
         isif = 2
 
-    # Validate IVDW. ATM three-body terms (13/14) are deferred: torch-dftd
-    # supports them via abc=True, but the wiring + reference data aren't in
-    # this release. Reject explicitly so users don't silently get D3-BJ.
-    if ivdw in (13, 14):
+    # Validate IVDW. IVDW=13 selects DFT-D4 (VASP >= 6.2, external package).
+    # D4 support is being added to vasp-mace on top of the `dftd4` backend but
+    # is not wired yet, so reject it explicitly with an accurate message rather
+    # than the previous (incorrect) "D3 + ATM three-body" label.
+    if ivdw == 13:
         raise ValueError(
-            f"IVDW={ivdw} (D3 + ATM three-body) is not yet supported in "
-            f"vasp-mace. Use IVDW=11 (D3-zero) or IVDW=12 (D3-BJ) instead."
+            "IVDW=13 (DFT-D4) is not yet implemented in vasp-mace. "
+            "Use IVDW=11 (D3-zero) or IVDW=12 (D3-BJ) for dispersion."
         )
     if ivdw not in (0, 11, 12):
         raise ValueError(

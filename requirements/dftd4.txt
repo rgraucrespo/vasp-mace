@@ -1,0 +1,14 @@
+# Optional DFT-D4 dispersion backend (IVDW = 13).
+#
+# The Fortran-backed `dftd4` package provides periodic DFT-D4 dispersion
+# (energy, gradient, virial -> forces + stress) for 3D bulk systems, and
+# exposes the internal EEQ partial charges via get_properties(). That single
+# EEQ solve is reused for the implicit-solvation term, so this one dependency
+# backs both DFT-D4 and (later) solvation charges.
+#
+# The torch-autodiff tad-dftd4 / tad-multicharge packages were evaluated and
+# rejected: they are molecular-only (no periodic/Ewald support) and so cannot
+# do D4 on 3D bulk. See not_for_release/solvation_design.md (Stage 0 findings).
+#
+# Verified with dftd4 4.2.0 (prebuilt wheel bundles the native library).
+dftd4>=4.0.0

@@ -37,16 +37,22 @@ class IVDWIncarParsingTests(unittest.TestCase):
                 cfg = parse_incar(_write_incar(Path(td), f"IVDW = {ivdw}\n"))
                 self.assertEqual(cfg.IVDW, ivdw)
 
-    def test_rejects_atm_three_body(self) -> None:
-        for ivdw in (13, 14):
-            with self.subTest(ivdw=ivdw), tempfile.TemporaryDirectory() as td:
-                with self.assertRaisesRegex(ValueError, "ATM"):
-                    parse_incar(_write_incar(Path(td), f"IVDW = {ivdw}\n"))
+    def test_rejects_d4_not_yet_implemented(self) -> None:
+        # IVDW=13 is DFT-D4 (VASP >= 6.2). Until the dftd4 backend is wired,
+        # parsing must reject it with a D4-specific message, not the old
+        # (incorrect) "ATM three-body" label.
+        with tempfile.TemporaryDirectory() as td:
+            with self.assertRaisesRegex(ValueError, "D4"):
+                parse_incar(_write_incar(Path(td), "IVDW = 13\n"))
 
     def test_rejects_unknown_ivdw(self) -> None:
         with tempfile.TemporaryDirectory() as td:
-            with self.assertRaisesRegex(ValueError, "IVDW=9 is not supported"):
-                parse_incar(_write_incar(Path(td), "IVDW = 9\n"))
+            for ivdw in (9, 14):
+                with self.subTest(ivdw=ivdw):
+                    with self.assertRaisesRegex(
+                        ValueError, f"IVDW={ivdw} is not supported"
+                    ):
+                        parse_incar(_write_incar(Path(td), f"IVDW = {ivdw}\n"))
 
 
 @unittest.skipUnless(_torch_dftd_available(), "torch_dftd not installed")
