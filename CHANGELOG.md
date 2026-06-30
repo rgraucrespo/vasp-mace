@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   formatter version as the repository.
 
 ### Added
+- **Implicit solvation (nonpolar/cavitation term)** via `LSOL = .TRUE.`, a
+  density-free surrogate (not VASPsol's Poisson-Boltzmann model). Adds
+  `E = TAU * SASA` on top of MACE, where SASA is a PBC-aware Shrake-Rupley
+  solvent-accessible surface area and `TAU` is the surface tension in
+  meV/Å² (VASPsol convention, default 0.525). Slab/cluster/molecule only:
+  a dense 3D-periodic cell with no vacuum is rejected. Forces are finite
+  differences of the solvation energy; stress is not yet included (zero, with
+  a warning). The polar Generalized-Born term is planned next. Rejected
+  together with `ML_LHEAT` for heat-flux consistency.
 - **DFT-D4 dispersion correction** via `IVDW=13` (xc=PBE), backed by the
   optional `dftd4` package. Periodic-capable, so it works for 3D bulk systems
   as well as molecules/slabs, and returns energy, forces, and stress. Added on

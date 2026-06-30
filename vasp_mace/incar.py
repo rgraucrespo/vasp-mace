@@ -240,6 +240,14 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         print(f"[warn] ML_HEAT_INTERVAL={ml_heat_interval} is invalid. Setting to 1.")
         ml_heat_interval = 1
 
+    # Implicit solvation (nonpolar/cavitation term). The slab/cluster scope
+    # check needs the geometry, so it is enforced at calculator build time, not
+    # here. TAU is in meV/Angstrom^2 (VASPsol convention).
+    lsol = _get_bool(raw, "LSOL", False)
+    tau = _get_float(raw, "TAU", 0.525)
+    if lsol and tau < 0:
+        raise ValueError(f"TAU={tau} must be non-negative when LSOL=.TRUE.")
+
     return IncarConfig(
         EDIFFG=ediffg,
         NSW=nsw,
@@ -264,5 +272,7 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         LCLIMB=lclimb,
         ML_LHEAT=ml_lheat,
         ML_HEAT_INTERVAL=ml_heat_interval,
+        LSOL=lsol,
+        TAU=tau,
         raw=raw,
     )

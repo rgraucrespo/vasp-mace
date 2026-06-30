@@ -104,6 +104,8 @@ def _run() -> None:
             device=args.device,
             dtype=args.dtype,
             ivdw=cfg.IVDW,
+            lsol=cfg.LSOL,
+            tau=cfg.TAU,
             optimizer=args.optimizer,
         )
         print(
@@ -135,7 +137,12 @@ def _run() -> None:
         main_dtype = "float64"
 
     calc, device, dtype = load_calc(
-        args.model, device=args.device, dtype=main_dtype, ivdw=cfg.IVDW
+        args.model,
+        device=args.device,
+        dtype=main_dtype,
+        ivdw=cfg.IVDW,
+        lsol=cfg.LSOL,
+        tau=cfg.TAU,
     )
     atoms.calc = calc
 
@@ -271,6 +278,7 @@ def _run() -> None:
         f"ISIF={cfg.ISIF}, NSW={cfg.NSW}, EDIFFG={cfg.EDIFFG}, "
         f"PSTRESS={cfg.PSTRESS} kBar ({pressure_GPa:.3f} GPa), "
         f"IVDW={cfg.IVDW}"
+        + (f", LSOL=.TRUE. (TAU={cfg.TAU} meV/Å²)" if cfg.LSOL else "")
     )
 
     atoms_initial = (

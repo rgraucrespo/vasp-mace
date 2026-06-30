@@ -254,6 +254,15 @@ def _validate_ml_lheat_md_config(cfg: IncarConfig) -> None:
             "inconsistent. Disable IVDW for heat-flux production, or run the "
             "dispersion-corrected MD without ML_LHEAT."
         )
+    if cfg.LSOL:
+        raise ValueError(
+            "ML_LHEAT=.TRUE. is not supported with LSOL=.TRUE.. The heat-flux "
+            "backend computes only the MACE potential contribution, so adding "
+            "the implicit-solvation force would make ML_HEAT inconsistent. "
+            "Disable LSOL for heat-flux production. (Solvation is also "
+            "slab-only, whereas ML_LHEAT is 3D-bulk-only, so the two should "
+            "not co-occur in practice.)"
+        )
     if not (
         cfg.MDALGO == 1 and abs(float(cfg.ANDERSEN_PROB)) <= 1.0e-15 and cfg.ISIF == 2
     ):

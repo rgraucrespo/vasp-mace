@@ -37,6 +37,8 @@ def load_calc(
     device: str = "auto",
     dtype: str = "auto",
     ivdw: int = 0,
+    lsol: bool = False,
+    tau: float = 0.525,
 ) -> Tuple[Any, str, str]:
     """Load a MACE calculator with device and dtype resolution.
 
@@ -63,6 +65,12 @@ def load_calc(
         zero-damping, ``12`` adds D3 with Becke-Johnson damping, and ``13``
         adds DFT-D4 via the ``dftd4`` backend (periodic, xc=PBE). Other values
         are rejected by ``parse_incar`` upstream.
+    lsol
+        When true, add the implicit-solvation cavitation term
+        (``SASASolvationCalculator``) on top of MACE (and any dispersion).
+        Slab/cluster only; dense 3D bulk is rejected at evaluation time.
+    tau
+        Solvation surface tension in meV/Angstrom^2 (used only when ``lsol``).
 
     Returns
     -------
@@ -118,11 +126,18 @@ def load_calc(
 
     def _build_calc(dev, dt):
         mace_calc = _build_mace(dev, dt)
+        extras = []
         if ivdw == _IVDW_D4:
-            return _wrap_with_d4(mace_calc)
-        if damping is None:
+            extras.append(_make_d4_calc())
+        elif damping is not None:
+            extras.append(_make_d3_calc(dev, dt, damping))
+        if lsol:
+            extras.append(_make_solvation_calc(tau))
+        if not extras:
             return mace_calc
-        return _wrap_with_d3(mace_calc, dev, dt, damping)
+        from ase.calculators.mixing import SumCalculator
+
+        return SumCalculator([mace_calc, *extras])
 
     if device in ("cuda", "mps"):
         try:
@@ -140,8 +155,8 @@ def load_calc(
     return calc, device, dtype
 
 
-def _wrap_with_d3(mace_calc: Any, device: str, dtype: str, damping: str) -> Any:
-    """Return SumCalculator([mace_calc, TorchDFTD3Calculator(...)])."""
+def _make_d3_calc(device: str, dtype: str, damping: str) -> Any:
+    """Return a ``TorchDFTD3Calculator`` (xc=PBE, cutoff=40 Bohr)."""
     try:
         from torch_dftd.torch_dftd3_calculator import TorchDFTD3Calculator
     except ImportError as exc:
@@ -149,29 +164,27 @@ def _wrap_with_d3(mace_calc: Any, device: str, dtype: str, damping: str) -> Any:
             "IVDW>0 requires the optional torch-dftd package. Install it with "
             "`pip install torch-dftd` (see https://github.com/pfnet-research/torch-dftd)."
         ) from exc
-    from ase.calculators.mixing import SumCalculator
     from ase.units import Bohr
     import torch
 
     torch_dtype = torch.float64 if dtype == "float64" else torch.float32
     # 40 Bohr cutoff matches mace_mp()'s default; xc is fixed to PBE.
-    d3_calc = TorchDFTD3Calculator(
+    return TorchDFTD3Calculator(
         device=device,
         damping=damping,
         dtype=torch_dtype,
         xc=_D3_XC,
         cutoff=40.0 * Bohr,
     )
-    return SumCalculator([mace_calc, d3_calc])
 
 
-def _wrap_with_d4(mace_calc: Any) -> Any:
-    """Return ``SumCalculator([mace_calc, DFTD4(method="pbe")])``.
+def _make_d4_calc() -> Any:
+    """Return a ``dftd4.ase.DFTD4`` calculator (xc=PBE, periodic-capable).
 
     DFT-D4 (``IVDW=13``) is provided by the Fortran-backed ``dftd4`` package,
     which supports periodic (3D bulk) systems and returns energy, forces, and
     stress. Unlike the torch D3 backend it runs on CPU and needs no device or
-    dtype. The xc functional is fixed to PBE (see ``_D4_METHOD``).
+    dtype.
     """
     try:
         from dftd4.ase import DFTD4
@@ -180,6 +193,26 @@ def _wrap_with_d4(mace_calc: Any) -> Any:
             "IVDW=13 (DFT-D4) requires the optional dftd4 package. Install it "
             "with `pip install dftd4` (see requirements/dftd4.txt)."
         ) from exc
+
+    return DFTD4(method=_D4_METHOD)
+
+
+def _make_solvation_calc(tau: float) -> Any:
+    """Return a ``SASASolvationCalculator`` for the nonpolar solvation term."""
+    from .solvation import SASASolvationCalculator
+
+    return SASASolvationCalculator(tau=tau)
+
+
+def _wrap_with_d3(mace_calc: Any, device: str, dtype: str, damping: str) -> Any:
+    """Return ``SumCalculator([mace_calc, TorchDFTD3Calculator(...)])``."""
     from ase.calculators.mixing import SumCalculator
 
-    return SumCalculator([mace_calc, DFTD4(method=_D4_METHOD)])
+    return SumCalculator([mace_calc, _make_d3_calc(device, dtype, damping)])
+
+
+def _wrap_with_d4(mace_calc: Any) -> Any:
+    """Return ``SumCalculator([mace_calc, DFTD4(method="pbe")])``."""
+    from ase.calculators.mixing import SumCalculator
+
+    return SumCalculator([mace_calc, _make_d4_calc()])
