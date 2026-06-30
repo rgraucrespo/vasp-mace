@@ -247,6 +247,12 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
     tau = _get_float(raw, "TAU", 0.525)
     if lsol and tau < 0:
         raise ValueError(f"TAU={tau} must be non-negative when LSOL=.TRUE.")
+    eb_k = _get_float(raw, "EB_K", 78.4)
+    if lsol and eb_k < 1.0:
+        raise ValueError(
+            f"EB_K={eb_k} must be >= 1 when LSOL=.TRUE. (it is the solvent "
+            f"dielectric constant; 1 disables the polar term, 78.4 = water)."
+        )
 
     return IncarConfig(
         EDIFFG=ediffg,
@@ -274,5 +280,6 @@ def parse_incar(path: str = "INCAR") -> IncarConfig:
         ML_HEAT_INTERVAL=ml_heat_interval,
         LSOL=lsol,
         TAU=tau,
+        EB_K=eb_k,
         raw=raw,
     )

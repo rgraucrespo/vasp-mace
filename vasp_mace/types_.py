@@ -84,13 +84,18 @@ class IncarConfig:
         vasp-mace extension: write ``ML_HEAT`` every ``ML_HEAT_INTERVAL`` MD
         steps. Defaults to ``1`` (every step) to match VASP behaviour.
     LSOL
-        VASP-style logical: enable the implicit-solvation correction. Currently
-        the nonpolar/cavitation term only (``E = TAU * SASA``), added on top of
-        the MACE calculator. Slab/cluster/molecule only; rejected for dense 3D
-        bulk. A density-free surrogate, not VASPsol's Poisson-Boltzmann model.
+        VASP-style logical: enable the implicit-solvation correction (nonpolar
+        cavitation ``TAU * SASA`` plus polar Generalized-Born driven by
+        ``EB_K``), added on top of the MACE calculator. Slab/cluster/molecule
+        only; rejected for dense 3D bulk. A density-free surrogate, not
+        VASPsol's Poisson-Boltzmann model.
     TAU
         Effective surface tension for the solvation cavitation term, in
         meV/Angstrom^2 (VASPsol convention). Used only when ``LSOL`` is true.
+    EB_K
+        Solvent (bulk) dielectric constant for the polar Generalized-Born term
+        (VASPsol convention; default 78.4 = water). Used only when ``LSOL`` is
+        true; ``EB_K = 1`` disables the polar term.
     raw
         Raw INCAR key/value strings after comment stripping and key
         upper-casing.
@@ -127,8 +132,9 @@ class IncarConfig:
     LCLIMB: bool = False  # NEB: enable climbing-image (CI-NEB)
     ML_LHEAT: bool = False  # VASP-style: write ML_HEAT during MD
     ML_HEAT_INTERVAL: int = 1  # vasp-mace extension: write every N MD steps
-    LSOL: bool = False  # VASP-style: enable implicit solvation (SASA nonpolar)
+    LSOL: bool = False  # VASP-style: enable implicit solvation (SASA + GB)
     TAU: float = 0.525  # solvation surface tension (meV/Angstrom^2); LSOL only
+    EB_K: float = 78.4  # solvent dielectric for polar GB term; LSOL only
     raw: Dict[str, str] = field(default_factory=dict)
 
 

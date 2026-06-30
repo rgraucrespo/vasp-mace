@@ -198,6 +198,7 @@ def run_neb(
     ivdw: int = 0,
     lsol: bool = False,
     tau: float = 0.525,
+    eb_k: float = 78.4,
     optimizer: str = "BFGS",
 ) -> tuple[list[list[StepRecord]], bool]:
     """Run a NEB calculation.
@@ -259,12 +260,24 @@ def run_neb(
     # ---- Attach one independent calculator per image (ASE requirement) ------
     # Resolve device/dtype once; reuse for all subsequent images.
     calc_0, device, dtype = load_calc(
-        model_path, device=device, dtype=dtype, ivdw=ivdw, lsol=lsol, tau=tau
+        model_path,
+        device=device,
+        dtype=dtype,
+        ivdw=ivdw,
+        lsol=lsol,
+        tau=tau,
+        eb_k=eb_k,
     )
     images[0].calc = calc_0
     for i in range(1, n_total):
         calc_i, _, _ = load_calc(
-            model_path, device=device, dtype=dtype, ivdw=ivdw, lsol=lsol, tau=tau
+            model_path,
+            device=device,
+            dtype=dtype,
+            ivdw=ivdw,
+            lsol=lsol,
+            tau=tau,
+            eb_k=eb_k,
         )
         images[i].calc = calc_i
 

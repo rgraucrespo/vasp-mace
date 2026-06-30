@@ -234,6 +234,18 @@ SMOKE_CASES = (
         tags=("all",),
         optional_import="dftd4",
     ),
+    SmokeCase(
+        name="example12_solvation_pbs",
+        example_dir="example12_PbS_100_solvation",
+        incar="""
+            NSW  = 0
+            LSOL = .TRUE.
+            EB_K = 80
+        """,
+        outputs=("CONTCAR", "OUTCAR", "OSZICAR", "vasprun.xml"),
+        tags=("all",),
+        optional_import="dftd4",
+    ),
 )
 
 

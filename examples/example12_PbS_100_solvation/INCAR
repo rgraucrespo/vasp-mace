@@ -1,0 +1,4 @@
+System = PbS (100) slab, implicit solvation (after VASPsol examples/PbS_100)
+NSW  = 0        # single-point: solvated total energy
+LSOL = .TRUE.   # implicit solvation (nonpolar SASA + polar Generalized-Born)
+EB_K = 80       # solvent dielectric constant (water), matching the VASPsol input

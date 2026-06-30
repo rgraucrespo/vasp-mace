@@ -39,6 +39,7 @@ def load_calc(
     ivdw: int = 0,
     lsol: bool = False,
     tau: float = 0.525,
+    eb_k: float = 78.4,
 ) -> Tuple[Any, str, str]:
     """Load a MACE calculator with device and dtype resolution.
 
@@ -66,11 +67,14 @@ def load_calc(
         adds DFT-D4 via the ``dftd4`` backend (periodic, xc=PBE). Other values
         are rejected by ``parse_incar`` upstream.
     lsol
-        When true, add the implicit-solvation cavitation term
-        (``SASASolvationCalculator``) on top of MACE (and any dispersion).
-        Slab/cluster only; dense 3D bulk is rejected at evaluation time.
+        When true, add the implicit-solvation term (``SolvationCalculator``:
+        nonpolar SASA + polar Generalized-Born) on top of MACE (and any
+        dispersion). Slab/cluster only; dense 3D bulk is rejected at evaluation
+        time.
     tau
         Solvation surface tension in meV/Angstrom^2 (used only when ``lsol``).
+    eb_k
+        Solvent dielectric for the polar GB term (used only when ``lsol``).
 
     Returns
     -------
@@ -132,7 +136,7 @@ def load_calc(
         elif damping is not None:
             extras.append(_make_d3_calc(dev, dt, damping))
         if lsol:
-            extras.append(_make_solvation_calc(tau))
+            extras.append(_make_solvation_calc(tau, eb_k))
         if not extras:
             return mace_calc
         from ase.calculators.mixing import SumCalculator
@@ -197,11 +201,11 @@ def _make_d4_calc() -> Any:
     return DFTD4(method=_D4_METHOD)
 
 
-def _make_solvation_calc(tau: float) -> Any:
-    """Return a ``SASASolvationCalculator`` for the nonpolar solvation term."""
-    from .solvation import SASASolvationCalculator
+def _make_solvation_calc(tau: float, eb_k: Optional[float]) -> Any:
+    """Return a ``SolvationCalculator`` (nonpolar SASA + optional polar GB)."""
+    from .solvation import SolvationCalculator
 
-    return SASASolvationCalculator(tau=tau)
+    return SolvationCalculator(tau=tau, eb_k=eb_k)
 
 
 def _wrap_with_d3(mace_calc: Any, device: str, dtype: str, damping: str) -> Any:

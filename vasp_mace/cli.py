@@ -106,6 +106,7 @@ def _run() -> None:
             ivdw=cfg.IVDW,
             lsol=cfg.LSOL,
             tau=cfg.TAU,
+            eb_k=cfg.EB_K,
             optimizer=args.optimizer,
         )
         print(
@@ -143,6 +144,7 @@ def _run() -> None:
         ivdw=cfg.IVDW,
         lsol=cfg.LSOL,
         tau=cfg.TAU,
+        eb_k=cfg.EB_K,
     )
     atoms.calc = calc
 
@@ -278,7 +280,7 @@ def _run() -> None:
         f"ISIF={cfg.ISIF}, NSW={cfg.NSW}, EDIFFG={cfg.EDIFFG}, "
         f"PSTRESS={cfg.PSTRESS} kBar ({pressure_GPa:.3f} GPa), "
         f"IVDW={cfg.IVDW}"
-        + (f", LSOL=.TRUE. (TAU={cfg.TAU} meV/Å²)" if cfg.LSOL else "")
+        + (f", LSOL=.TRUE. (TAU={cfg.TAU} meV/Å², EB_K={cfg.EB_K})" if cfg.LSOL else "")
     )
 
     atoms_initial = (

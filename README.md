@@ -505,6 +505,7 @@ Ready-to-run examples are provided in the `examples/` directory. Copy an example
 | `example09_MgO_elastic/` | MgO (rock salt, 8 atoms) | Phonons + elastic tensor (`IBRION = 6`, `ISIF = 3`): full 6×6 C_ij with Voigt/Reuss/Hill averages appended to OUTCAR |
 | `example10_heat_flux/` | PbTe (rock salt, 4×4×4, 512 atoms) | NVT equilibration input plus NVE production MD with `ML_LHEAT = .TRUE.`: writes a VASP-compatible `ML_HEAT` plus an `ML_HEAT.json` sidecar for downstream Green-Kubo analysis with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898). Requires the optional heat-flux backend |
 | `example11_hBN_D4-dispersion/` | h-BN (hexagonal) | Variable-cell relaxation with D4 dispersion (`IVDW = 13`). Requires the optional `dftd4` backend |
+| `example12_PbS_100_solvation/` | PbS (100) slab | Implicit-solvation single-point (`LSOL = .TRUE.`, `EB_K = 80`), after the VASPsol `PbS_100` example. Requires the optional `dftd4` backend |
 
 ### example01 — MgO variable-cell relaxation
 
@@ -676,6 +677,25 @@ IVDW   = 13
 ```
 
 The relaxation reproduces the expected h-BN structure (in-plane `a ≈ 2.51 Å`, B–N bond `≈ 1.45 Å`, interlayer spacing `≈ 3.4 Å`), and the shared EEQ charge model (`vasp_mace.charges.eeq_charges`) gives the correct polarity, B `≈ +0.20`, N `≈ −0.20` (N more electronegative), summing to zero.
+
+### example12 — PbS(100) implicit solvation
+
+The PbS(100) slab and solvation settings (`LSOL = .TRUE.`, `EB_K = 80`) are taken from the [VASPsol](https://github.com/henniggroup/VASPsol) `examples/PbS_100` case. vasp-mace adds a **density-free** implicit-solvation correction — nonpolar cavitation (`TAU·SASA`) plus a polar Generalized-Born term (OBC Born radii, EEQ charges) — on top of MACE; it is **not** VASPsol's Poisson-Boltzmann model.
+
+```
+NSW  = 0
+LSOL = .TRUE.
+EB_K = 80
+```
+
+As a single-point solvation-energy check against the VASPsol reference (`OSZICAR.ref`):
+
+| | vacuum | solvated | ΔE_solv |
+|---|---|---|---|
+| vasp-mace (MACE + GB surrogate) | −44.072 eV | −44.253 eV | **−0.181 eV** |
+| VASPsol (DFT + Poisson-Boltzmann) | −43.563 eV | −43.643 eV | **−0.080 eV** |
+
+The absolute energies are not comparable (MACE vs DFT), but the **solvation shift** is: both are small and favorable, agreeing in sign and to within ~2× — good for a charge-model surrogate. The EEQ charges are physical (Pb `≈ +0.35`, S `≈ −0.35`). Note: the polar term uses minimum-image GB cross terms, not a periodic lattice sum (see `vasp_mace/solvation.py`).
 
 ---
 
