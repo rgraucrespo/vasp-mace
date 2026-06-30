@@ -221,6 +221,19 @@ SMOKE_CASES = (
         tags=("all",),
         optional_import="mace_unfolded",
     ),
+    SmokeCase(
+        name="example11_dispersion_d4_hbn",
+        example_dir="example11_hBN_D4-dispersion",
+        incar="""
+            NSW    = 1
+            ISIF   = 3
+            EDIFFG = -10.0
+            IVDW   = 13
+        """,
+        outputs=("CONTCAR", "OUTCAR", "OSZICAR", "XDATCAR", "vasprun.xml"),
+        tags=("all",),
+        optional_import="dftd4",
+    ),
 )
 
 
@@ -257,7 +270,7 @@ class ExampleInputTests(unittest.TestCase):
             with self.subTest(path=path.relative_to(REPO_ROOT)):
                 cfg = parse_incar(str(path))
                 self.assertGreaterEqual(cfg.NSW, 0)
-                self.assertIn(cfg.IVDW, (0, 11, 12))
+                self.assertIn(cfg.IVDW, (0, 11, 12, 13))
                 self.assertIn(cfg.NFREE, (1, 2))
                 if cfg.IMAGES > 0:
                     self.assertLess(cfg.SPRING, 0)

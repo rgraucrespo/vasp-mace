@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same `dftd4` backend). Neutral systems only for now; this is the charge
   source that will also drive the planned implicit-solvation term.
 - `requirements/dftd4.txt`: optional DFT-D4 dispersion backend (`dftd4`).
+- `examples/example11_hBN_D4-dispersion/`: hexagonal h-BN variable-cell
+  relaxation with DFT-D4 (`IVDW=13`), mirroring the D3 example02. Reproduces
+  the expected geometry (a ≈ 2.51 Å, B-N ≈ 1.45 Å, interlayer ≈ 3.4 Å) and
+  EEQ charges (B ≈ +0.20, N ≈ -0.20).
 
 ### Changed
 - Heat-flux backend: when `forward=True`, the `mace-unfolded` call is now

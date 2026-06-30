@@ -504,6 +504,7 @@ Ready-to-run examples are provided in the `examples/` directory. Copy an example
 | `example08_PbTe_phonons/` | PbTe (rock salt, 8 atoms) | Phonon calculation with symmetry reduction (`IBRION = 6`, `NFREE = 2`). Requires `pip install phonopy` |
 | `example09_MgO_elastic/` | MgO (rock salt, 8 atoms) | Phonons + elastic tensor (`IBRION = 6`, `ISIF = 3`): full 6×6 C_ij with Voigt/Reuss/Hill averages appended to OUTCAR |
 | `example10_heat_flux/` | PbTe (rock salt, 4×4×4, 512 atoms) | NVT equilibration input plus NVE production MD with `ML_LHEAT = .TRUE.`: writes a VASP-compatible `ML_HEAT` plus an `ML_HEAT.json` sidecar for downstream Green-Kubo analysis with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898). Requires the optional heat-flux backend |
+| `example11_hBN_D4-dispersion/` | h-BN (hexagonal) | Variable-cell relaxation with D4 dispersion (`IVDW = 13`). Requires the optional `dftd4` backend |
 
 ### example01 — MgO variable-cell relaxation
 
@@ -662,6 +663,19 @@ ML_HEAT_INTERVAL = 1
 ```
 
 Requires the optional heat-flux backend dependencies; see [Optional heat-flux backend](#optional-heat-flux-backend). Pass the resulting `ML_HEAT` to [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for Green-Kubo / cepstral analysis.
+
+### example11 — h-BN with DFT-D4 dispersion
+
+Same hexagonal h-BN primitive cell as example02, but with fourth-generation dispersion (`IVDW = 13`, DFT-D4, xc=PBE) instead of D3(BJ). D4 is provided by the optional `dftd4` backend (`pip install dftd4`; see `requirements/dftd4.txt`) and is periodic, so it applies to 3D bulk as well as molecules and slabs.
+
+```
+NSW    = 100
+ISIF   = 3
+EDIFFG = -0.01
+IVDW   = 13
+```
+
+The relaxation reproduces the expected h-BN structure (in-plane `a ≈ 2.51 Å`, B–N bond `≈ 1.45 Å`, interlayer spacing `≈ 3.4 Å`), and the shared EEQ charge model (`vasp_mace.charges.eeq_charges`) gives the correct polarity, B `≈ +0.20`, N `≈ −0.20` (N more electronegative), summing to zero.
 
 ---
 

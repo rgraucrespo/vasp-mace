@@ -1,0 +1,491 @@
+<?xml version='1.0' encoding='utf-8'?>
+<modeling>
+ <generator>
+  <i name="program" type="string">vasp </i>
+  <i name="version" type="string">mace-ase  </i>
+  <i name="platform" type="string">mace-ase</i>
+  <i name="date" type="string">2026 06 30</i>
+  <i name="time" type="string">20:22:14</i>
+ </generator>
+ <incar>
+  <i name="NSW" type="int">   100</i>
+  <i name="ISIF" type="int">   3</i>
+  <i name="EDIFFG">      -0.01000000</i>
+  <i name="IVDW" type="int">   13</i>
+ </incar>
+ <parameters>
+  <separator name="electronic">
+   <i type="int" name="NELM">   60</i>
+   <i type="logical" name="LCHIMAG"> F  </i>
+   <i name="EDIFF">      0.00010000</i>
+  </separator>
+  <separator name="ionic">
+   <i type="int" name="NSW">   100</i>
+   <i type="int" name="IBRION">   -1</i>
+   <i type="int" name="ISIF">   3</i>
+   <i name="EDIFFG">      -0.01000000</i>
+   <i type="int" name="LORBIT">   0</i>
+  </separator>
+ </parameters>
+ <atominfo>
+  <atoms>      4 </atoms>
+  <types>      2 </types>
+  <array name="atoms">
+   <dimension dim="1">ion</dimension>
+   <field type="string">element</field>
+   <field type="int">atomtype</field>
+   <set>
+    <rc>
+     <c>B</c>
+     <c>   1</c>
+    </rc>
+    <rc>
+     <c>B</c>
+     <c>   1</c>
+    </rc>
+    <rc>
+     <c>N</c>
+     <c>   2</c>
+    </rc>
+    <rc>
+     <c>N</c>
+     <c>   2</c>
+    </rc>
+   </set>
+  </array>
+  <array name="atomtypes">
+   <dimension dim="1">type</dimension>
+   <field type="int">atomspertype</field>
+   <field type="string">element</field>
+   <field>mass</field>
+   <field>valence</field>
+   <field type="string">pseudopotential</field>
+   <set>
+    <rc>
+     <c>      2</c>
+     <c>B</c>
+     <c>       10.81000000</c>
+     <c>       0.00000000</c>
+     <c>  PAW_PBE B (MACE)                    </c>
+    </rc>
+    <rc>
+     <c>      2</c>
+     <c>N</c>
+     <c>       14.00700000</c>
+     <c>       0.00000000</c>
+     <c>  PAW_PBE N (MACE)                    </c>
+    </rc>
+   </set>
+  </array>
+ </atominfo>
+ <structure name="initialpos">
+  <crystal>
+   <varray name="basis">
+    <v>        2.50443619       0.00000003       0.00000000 </v>
+    <v>       -1.25221807       2.16906124       0.00000000 </v>
+    <v>        0.00000000       0.00000000       6.66260227 </v>
+   </varray>
+   <i name="volume">       36.19309115 </i>
+   <varray name="rec_basis">
+    <v>        0.39929146       0.23051446      -0.00000000 </v>
+    <v>       -0.00000000       0.46102893      -0.00000000 </v>
+    <v>       -0.00000000      -0.00000000       0.15009150 </v>
+   </varray>
+  </crystal>
+  <varray name="positions">
+   <v>        0.33333550       0.66667101       0.25000000 </v>
+   <v>        0.66666450       0.33332899       0.75000000 </v>
+   <v>        0.66666446       0.33332893       0.25000000 </v>
+   <v>        0.33333554       0.66667107       0.75000000 </v>
+  </varray>
+ </structure>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.50824236 </i>
+    <i name="e_wo_entrp">          -35.50824236 </i>
+    <i name="e_0_energy">          -35.50824236 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.50443619       0.00000003       0.00000000 </v>
+     <v>       -1.25221807       2.16906124       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.66260227 </v>
+    </varray>
+    <i name="volume">       36.19309115 </i>
+    <varray name="rec_basis">
+     <v>        0.39929146       0.23051446      -0.00000000 </v>
+     <v>       -0.00000000       0.46102893      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.15009150 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33333550       0.66667101       0.25000000 </v>
+    <v>        0.66666450       0.33332899       0.75000000 </v>
+    <v>        0.66666446       0.33332893       0.25000000 </v>
+    <v>        0.33333554       0.66667107       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>       -0.00000002       0.00013605       0.00000000 </v>
+   <v>        0.00000002      -0.00013605      -0.00000000 </v>
+   <v>       -0.00000004      -0.00014283      -0.00000000 </v>
+   <v>        0.00000004       0.00014283       0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>        7.11686005       0.00043509       0.00000000 </v>
+   <v>        0.00043509       6.80342039       0.00000000 </v>
+   <v>        0.00000000       0.00000000      10.34480290 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.50824236 </i>
+   <i name="e_wo_entrp">          -35.50824236 </i>
+   <i name="e_0_energy">          -35.50824236 </i>
+  </energy>
+ </calculation>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.50876411 </i>
+    <i name="e_wo_entrp">          -35.50876411 </i>
+    <i name="e_0_energy">          -35.50876411 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.50817093       0.00000025       0.00000000 </v>
+     <v>       -1.25408525       2.17215340       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.67686035 </v>
+    </varray>
+    <i name="volume">       36.37641865 </i>
+    <varray name="rec_basis">
+     <v>        0.39869689       0.23018627      -0.00000000 </v>
+     <v>       -0.00000005       0.46037262      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.14977099 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33334121       0.66668241       0.25000000 </v>
+    <v>        0.66665879       0.33331759       0.75000000 </v>
+    <v>        0.66665852       0.33331705       0.25000000 </v>
+    <v>        0.33334148       0.66668295       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>       -0.00000180      -0.00160353      -0.00000000 </v>
+   <v>        0.00000180       0.00160353       0.00000000 </v>
+   <v>        0.00000177       0.00161194       0.00000000 </v>
+   <v>       -0.00000177      -0.00161194       0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>       -5.70264672      -0.00001727       0.00000000 </v>
+   <v>       -0.00001727      -5.63318015      -0.00000000 </v>
+   <v>        0.00000000      -0.00000000       9.37195246 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.50876411 </i>
+   <i name="e_wo_entrp">          -35.50876411 </i>
+   <i name="e_0_energy">          -35.50876411 </i>
+  </energy>
+ </calculation>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.50884362 </i>
+    <i name="e_wo_entrp">          -35.50884362 </i>
+    <i name="e_0_energy">          -35.50884362 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.50848052       0.00000029       0.00000000 </v>
+     <v>       -1.25424001       2.17240108       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.68044267 </v>
+    </varray>
+    <i name="volume">       36.40457898 </i>
+    <varray name="rec_basis">
+     <v>        0.39864768       0.23016002      -0.00000000 </v>
+     <v>       -0.00000005       0.46032012      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.14969068 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33333740       0.66667483       0.25000000 </v>
+    <v>        0.66666260       0.33332517       0.75000000 </v>
+    <v>        0.66666231       0.33332461       0.25000000 </v>
+    <v>        0.33333769       0.66667539       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>       -0.00000100      -0.00089567      -0.00000000 </v>
+   <v>        0.00000100       0.00089567      -0.00000000 </v>
+   <v>        0.00000097       0.00090107       0.00000000 </v>
+   <v>       -0.00000097      -0.00090107       0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>       -6.71659297      -0.00005590       0.00000000 </v>
+   <v>       -0.00005590      -6.64976011       0.00000000 </v>
+   <v>        0.00000000       0.00000000       9.13696443 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.50884362 </i>
+   <i name="e_wo_entrp">          -35.50884362 </i>
+   <i name="e_0_energy">          -35.50884362 </i>
+  </energy>
+ </calculation>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.50976827 </i>
+    <i name="e_wo_entrp">          -35.50976827 </i>
+    <i name="e_0_energy">          -35.50976827 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.51055511       0.00000071       0.00000000 </v>
+     <v>       -1.25527694       2.17395416       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.72982436 </v>
+    </varray>
+    <i name="volume">       36.73025495 </i>
+    <varray name="rec_basis">
+     <v>        0.39831822       0.22999550      -0.00000000 </v>
+     <v>       -0.00000013       0.45999122      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.14859229 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33329425       0.66658873       0.25000000 </v>
+    <v>        0.66670575       0.33341127       0.75000000 </v>
+    <v>        0.66670529       0.33341039       0.25000000 </v>
+    <v>        0.33329471       0.66658961       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>        0.00000798       0.00701964      -0.00000000 </v>
+   <v>       -0.00000798      -0.00701964      -0.00000000 </v>
+   <v>       -0.00000802      -0.00704953       0.00000000 </v>
+   <v>        0.00000802       0.00704953      -0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>      -13.18729620      -0.00051560       0.00000000 </v>
+   <v>       -0.00051560     -13.11664893       0.00000000 </v>
+   <v>        0.00000000       0.00000000       6.01322914 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.50976827 </i>
+   <i name="e_wo_entrp">          -35.50976827 </i>
+   <i name="e_0_energy">          -35.50976827 </i>
+  </energy>
+ </calculation>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.51054459 </i>
+    <i name="e_wo_entrp">          -35.51054459 </i>
+    <i name="e_0_energy">          -35.51054459 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.51066794       0.00000107       0.00000000 </v>
+     <v>       -1.25533305       2.17383826       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.78078818 </v>
+    </varray>
+    <i name="volume">       37.00810007 </i>
+    <varray name="rec_basis">
+     <v>        0.39830028       0.23000769      -0.00000000 </v>
+     <v>       -0.00000020       0.46001571      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.14747548 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33327248       0.66654531       0.25000000 </v>
+    <v>        0.66672752       0.33345469       0.75000000 </v>
+    <v>        0.66672684       0.33345338       0.25000000 </v>
+    <v>        0.33327316       0.66654662       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>        0.00001213       0.01063023      -0.00000000 </v>
+   <v>       -0.00001213      -0.01063023      -0.00000000 </v>
+   <v>       -0.00001216      -0.01067264       0.00000000 </v>
+   <v>        0.00001216       0.01067264      -0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>      -13.13459949      -0.00098545      -0.00000000 </v>
+   <v>       -0.00098545     -12.86865256       0.00000000 </v>
+   <v>       -0.00000000       0.00000000       2.95604092 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.51054459 </i>
+   <i name="e_wo_entrp">          -35.51054459 </i>
+   <i name="e_0_energy">          -35.51054459 </i>
+  </energy>
+ </calculation>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.51115043 </i>
+    <i name="e_wo_entrp">          -35.51115043 </i>
+    <i name="e_0_energy">          -35.51115043 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.50884725       0.00000129       0.00000000 </v>
+     <v>       -1.25442251       2.17211034       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.82976264 </v>
+    </varray>
+    <i name="volume">       37.21875508 </i>
+    <varray name="rec_basis">
+     <v>        0.39858931       0.23019061      -0.00000000 </v>
+     <v>       -0.00000024       0.46038163      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.14641797 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33328237       0.66656506       0.25000000 </v>
+    <v>        0.66671763       0.33343494       0.75000000 </v>
+    <v>        0.66671668       0.33343311       0.25000000 </v>
+    <v>        0.33328332       0.66656689       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>        0.00000933       0.00805384      -0.00000000 </v>
+   <v>       -0.00000933      -0.00805384      -0.00000000 </v>
+   <v>       -0.00000931      -0.00807152       0.00000000 </v>
+   <v>        0.00000931       0.00807152      -0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>       -6.93481883      -0.00142926       0.00000000 </v>
+   <v>       -0.00142926      -6.24102685       0.00000000 </v>
+   <v>        0.00000000       0.00000000       0.11618346 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.51115043 </i>
+   <i name="e_wo_entrp">          -35.51115043 </i>
+   <i name="e_0_energy">          -35.51115043 </i>
+  </energy>
+ </calculation>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.51126476 </i>
+    <i name="e_wo_entrp">          -35.51126476 </i>
+    <i name="e_0_energy">          -35.51126476 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.50729805       0.00000120       0.00000000 </v>
+     <v>       -1.25364799       2.17080928       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.83731107 </v>
+    </varray>
+    <i name="volume">       37.21457733 </i>
+    <varray name="rec_basis">
+     <v>        0.39883560       0.23032859      -0.00000000 </v>
+     <v>       -0.00000022       0.46065757      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.14625633 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33330817       0.66661657       0.25000000 </v>
+    <v>        0.66669183       0.33338343       0.75000000 </v>
+    <v>        0.66669084       0.33338153       0.25000000 </v>
+    <v>        0.33330916       0.66661847       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>        0.00000368       0.00293185      -0.00000000 </v>
+   <v>       -0.00000368      -0.00293185      -0.00000000 </v>
+   <v>       -0.00000363      -0.00291875       0.00000000 </v>
+   <v>        0.00000363       0.00291875      -0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>       -1.96619842      -0.00144074      -0.00000000 </v>
+   <v>       -0.00144074      -1.05145962      -0.00000000 </v>
+   <v>       -0.00000000      -0.00000000      -0.31545650 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.51126476 </i>
+   <i name="e_wo_entrp">          -35.51126476 </i>
+   <i name="e_0_energy">          -35.51126476 </i>
+  </energy>
+ </calculation>
+ <calculation>
+  <scstep>
+   <energy>
+    <i name="e_fr_energy">          -35.51127495 </i>
+    <i name="e_wo_entrp">          -35.51127495 </i>
+    <i name="e_0_energy">          -35.51127495 </i>
+   </energy>
+  </scstep>
+  <structure>
+   <crystal>
+    <varray name="basis">
+     <v>        2.50681869       0.00000107       0.00000000 </v>
+     <v>       -1.25340842       2.17047122       0.00000000 </v>
+     <v>        0.00000000       0.00000000       6.83332044 </v>
+    </varray>
+    <i name="volume">       37.17995412 </i>
+    <varray name="rec_basis">
+     <v>        0.39891188       0.23036450      -0.00000000 </v>
+     <v>       -0.00000020       0.46072933      -0.00000000 </v>
+     <v>       -0.00000000      -0.00000000       0.14634174 </v>
+    </varray>
+   </crystal>
+   <varray name="positions">
+    <v>        0.33332075       0.66664168       0.25000000 </v>
+    <v>        0.66667925       0.33335832       0.75000000 </v>
+    <v>        0.66667835       0.33335660       0.25000000 </v>
+    <v>        0.33332165       0.66664340       0.75000000 </v>
+   </varray>
+  </structure>
+  <varray name="forces">
+   <v>        0.00000115       0.00064528       0.00000000 </v>
+   <v>       -0.00000115      -0.00064528      -0.00000000 </v>
+   <v>       -0.00000110      -0.00062207       0.00000000 </v>
+   <v>        0.00000110       0.00062207      -0.00000000 </v>
+  </varray>
+  <varray name="stress">
+   <v>       -0.50796300      -0.00129338       0.00000000 </v>
+   <v>       -0.00129338       0.39644191       0.00000000 </v>
+   <v>        0.00000000       0.00000000      -0.08647709 </v>
+  </varray>
+  <energy>
+   <i name="e_fr_energy">          -35.51127495 </i>
+   <i name="e_wo_entrp">          -35.51127495 </i>
+   <i name="e_0_energy">          -35.51127495 </i>
+  </energy>
+ </calculation>
+ <structure name="finalpos">
+  <crystal>
+   <varray name="basis">
+    <v>        2.50681869       0.00000107       0.00000000 </v>
+    <v>       -1.25340842       2.17047122       0.00000000 </v>
+    <v>        0.00000000       0.00000000       6.83332044 </v>
+   </varray>
+   <i name="volume">       37.17995412 </i>
+   <varray name="rec_basis">
+    <v>        0.39891188       0.23036450      -0.00000000 </v>
+    <v>       -0.00000020       0.46072933      -0.00000000 </v>
+    <v>       -0.00000000      -0.00000000       0.14634174 </v>
+   </varray>
+  </crystal>
+  <varray name="positions">
+   <v>        0.33332075       0.66664168       0.25000000 </v>
+   <v>        0.66667925       0.33335832       0.75000000 </v>
+   <v>        0.66667835       0.33335660       0.25000000 </v>
+   <v>        0.33332165       0.66664340       0.75000000 </v>
+  </varray>
+ </structure>
+</modeling>
