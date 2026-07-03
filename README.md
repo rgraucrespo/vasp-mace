@@ -46,9 +46,9 @@ For most workflows, a pure Python/ASE script is the better way to run MACE (more
 
 It exists for the cases where VASP-style files are what you already have or what you need:
 
-- You have a set of `POSCAR`/`INCAR` files from a previous VASP project and want a quick MACE relaxation without rewriting any input.
+- You have a set of `POSCAR`/`INCAR` files from a previous VASP project and want to carry out some  MACE-based simulations (relaxation, MD, NEB, etc.)  without rewriting any input.
 - You are using an external code that reads VASP output (e.g. `vasprun.xml` for ShengBTE, `CONTCAR` for a downstream workflow) and you want MACE to slot in transparently.
-- You are comparing MACE results against VASP calculations and prefer to keep the input/output format identical to reduce variables.
+- You are comparing MACE results against VASP calculations and prefer to keep the input/output format the same to reduce variables.
 - You are simply too fond of VASP files to let go, and that is a perfectly valid reason.
 
 Whatever brings you here, enjoy `vasp-mace`.
