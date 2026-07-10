@@ -29,7 +29,7 @@ See [NOTICE.md](NOTICE.md) for the repository-level notice.
 - **Heat flux for Green-Kubo** (`ML_LHEAT = .TRUE.`): per-step VASP-compatible `ML_HEAT` from fixed-cell NVE MACE MD via the unfolded-cell autograd backend (`mace-unfolded`); for 3D bulk solids only. Post-process with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for thermal conductivity
 - **Nudged Elastic Band (NEB)**: minimum-energy path and transition-state search via ASE's MDMin optimizer; optional climbing-image NEB (`LCLIMB = .TRUE.`, VTST convention)
 - **Phonon calculations**: Γ-point force constants and frequencies via finite differences (`IBRION = 5`); symmetry-reduced displacements via phonopy (`IBRION = 6`), with VASP-compatible `DYNMAT` and `OUTCAR` output
-- **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill polycrystalline averages (K, G, E, ν) via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
+- **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill averages (K, G, E, ν), and Hashin-Shtrikman shear bounds via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
 - **Selective dynamics**: per-atom coordinate fixing from POSCAR, preserved in CONTCAR
 - **DFT-D3 dispersion correction** via `IVDW` in INCAR (zero-damping and Becke-Johnson variants; xc=PBE)
 - **DFT-D4 dispersion correction** via `IVDW = 13` (periodic, xc=PBE), backed by the `dftd4` package
@@ -230,7 +230,7 @@ Output files produced (VASP-compatible format):
 
 Setting `ISIF ≥ 3` alongside `IBRION = 5/6` activates the elastic tensor calculation, matching VASP behavior. After the phonon displacements are complete, 12 additional single-point calculations are performed (6 Voigt strain patterns × ±1% strain, central differences), and the resulting stress-strain relationship is used to build the full 6×6 elastic tensor C_ij.
 
-The elastic tensor, together with Voigt, Reuss, and Hill polycrystalline averages, is appended to `OUTCAR` in VASP format (kBar units, XX YY ZZ XY YZ ZX column order):
+The elastic tensor, together with Voigt, Reuss, Hill, and Hashin-Shtrikman polycrystalline shear-modulus results, is appended to `OUTCAR` in VASP format (kBar units, XX YY ZZ XY YZ ZX column order):
 
 ```
  TOTAL ELASTIC MODULI (kBar)
@@ -245,6 +245,7 @@ The elastic tensor, together with Voigt, Reuss, and Hill polycrystalline average
   Voigt              140.813         102.442
   Reuss              140.813          98.784
   Hill               140.813         100.613       243.779        0.2115
+  Hashin-Shtrikman shear modulus (GPa): lower = 99.842  upper = 101.441  midpoint = 100.641
 ```
 
 A human-readable summary is also printed to stdout (GPa, ASE Voigt ordering xx yy zz yz xz xy).
@@ -263,6 +264,8 @@ The polycrystalline averages follow the Voigt–Reuss–Hill scheme ([de Jong et
 | Poisson's ratio | ν = (3 K_VRH − 2 G_VRH) / (6 K_VRH + 2 G_VRH) |
 
 These expressions are valid for all crystal systems (cubic to triclinic).
+
+The Hashin-Shtrikman shear bounds use isotropic comparison tensors for a randomly oriented polycrystal; their arithmetic mean is also reported.
 
 > **Internal strain tensor**: not computed (vasp-mace computes the macroscopic elastic tensor only).
 

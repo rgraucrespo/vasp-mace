@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Elastic-property output now includes lower and upper Hashin-Shtrikman shear
+  modulus bounds and their midpoint in both stdout and `OUTCAR`.
+
 ## [2.8.0] - 2026-06-30
 
 ### Fixed

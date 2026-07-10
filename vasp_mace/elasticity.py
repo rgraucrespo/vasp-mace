@@ -63,6 +63,115 @@ def _reuss_averages(C: np.ndarray):
     return K_r, G_r
 
 
+def _hashin_shtrikman_shear_bounds(C: np.ndarray):
+    """Return lower, upper, and midpoint HS shear moduli in GPa.
+
+    The bounds use the isotropic-comparison-tensor formulation for a randomly
+    oriented polycrystal, so they apply to the full elastic tensor rather than
+    treating the Voigt and Reuss averages as material phases.
+    """
+    kelvin_scale = np.diag([1.0, 1.0, 1.0, np.sqrt(2.0), np.sqrt(2.0), np.sqrt(2.0)])
+    C_kelvin = kelvin_scale @ C @ kelvin_scale
+    eigenvalues = np.linalg.eigvalsh(C_kelvin)
+    if np.min(eigenvalues) <= 0:
+        raise ValueError(
+            "Hashin-Shtrikman bounds require a mechanically stable elastic tensor."
+        )
+
+    scale = float(np.max(eigenvalues))
+    lower = _optimize_hs_shear(C_kelvin, scale, positive_residual=True)
+    upper = _optimize_hs_shear(C_kelvin, scale, positive_residual=False)
+    return lower, upper, (lower + upper) / 2
+
+
+def _optimize_hs_shear(
+    C_kelvin: np.ndarray, scale: float, positive_residual: bool
+) -> float:
+    """Optimize an HS shear bound over isotropic comparison tensors."""
+    # A coarse global scan followed by local refinements is sufficient for this
+    # two-dimensional bounded problem and keeps NumPy as the only dependency.
+    floor = scale * 1.0e-6
+    k_min = g_min = floor
+    k_max = g_max = scale
+    best_k = best_g = None
+
+    for count in (81, 31, 31, 31):
+        k_values, g_values = np.meshgrid(
+            np.linspace(k_min, k_max, count),
+            np.linspace(g_min, g_max, count),
+            indexing="ij",
+        )
+        candidate_shears, residual_eigenvalues = _hs_candidate_shears(
+            C_kelvin, k_values.ravel(), g_values.ravel()
+        )
+        nonsingular = np.min(np.abs(residual_eigenvalues), axis=1) > scale * 1.0e-10
+        if positive_residual:
+            valid = nonsingular & (
+                np.min(residual_eigenvalues, axis=1) >= -scale * 1.0e-9
+            )
+            score = np.where(valid, candidate_shears, -np.inf)
+            index = int(np.argmax(score))
+        else:
+            valid = nonsingular & (
+                np.max(residual_eigenvalues, axis=1) <= scale * 1.0e-9
+            )
+            score = np.where(valid, candidate_shears, np.inf)
+            index = int(np.argmin(score))
+
+        if not np.isfinite(score[index]):
+            raise ValueError(
+                "Could not find a valid Hashin-Shtrikman comparison tensor."
+            )
+
+        best_k = k_values.ravel()[index]
+        best_g = g_values.ravel()[index]
+        step_k = (k_max - k_min) / (count - 1)
+        step_g = (g_max - g_min) / (count - 1)
+        k_min = max(floor, best_k - 2 * step_k)
+        k_max = min(scale, best_k + 2 * step_k)
+        g_min = max(floor, best_g - 2 * step_g)
+        g_max = min(scale, best_g + 2 * step_g)
+
+    candidate_shears, _ = _hs_candidate_shears(
+        C_kelvin, np.array([best_k]), np.array([best_g])
+    )
+    return float(candidate_shears[0])
+
+
+def _hs_candidate_shears(C_kelvin: np.ndarray, K0: np.ndarray, G0: np.ndarray):
+    """Evaluate HS shear moduli and comparison-tensor eigenvalues."""
+    volumetric = np.zeros((6, 6))
+    volumetric[:3, :3] = 1.0 / 3.0
+    deviatoric = np.eye(6) - volumetric
+
+    comparison = 3 * K0[:, None, None] * volumetric
+    comparison += 2 * G0[:, None, None] * deviatoric
+    residual = C_kelvin - comparison
+
+    residual_values, residual_vectors = np.linalg.eigh(residual)
+    residual_compliance = np.matmul(
+        residual_vectors * (1.0 / residual_values)[:, None, :],
+        np.swapaxes(residual_vectors, 1, 2),
+    )
+
+    alpha = -3.0 / (3.0 * K0 + 4.0 * G0)
+    beta = -3.0 * (K0 + 2.0 * G0) / (5.0 * G0 * (3.0 * K0 + 4.0 * G0))
+    gamma = (alpha - 3.0 * beta) / 9.0
+    response = residual_compliance - beta[:, None, None] * np.eye(6)
+    response -= 3.0 * gamma[:, None, None] * volumetric
+
+    response_values, response_vectors = np.linalg.eigh(response)
+    stress_response = np.matmul(
+        response_vectors * (1.0 / response_values)[:, None, :],
+        np.swapaxes(response_vectors, 1, 2),
+    )
+    contraction_1 = 3.0 * np.einsum("ij,nji->n", volumetric, stress_response)
+    contraction_2 = np.trace(stress_response, axis1=1, axis2=2)
+    B2 = (3.0 * contraction_2 - contraction_1) / 30.0
+    shear = G0 + B2 / (1.0 + 2.0 * beta * B2)
+    return shear, residual_values
+
+
 def run_elastic(
     atoms: Atoms, calc: Any, cfg: IncarConfig, outcar_path: str = "OUTCAR"
 ) -> np.ndarray:
@@ -70,8 +179,9 @@ def run_elastic(
 
     Applies 6 Voigt strain patterns ±STRAIN_AMP (12 single-point calculations),
     retrieves stress from the MACE calculator, and central-differences to Cij.
-    Derives Voigt, Reuss, and Hill polycrystalline averages (K, G, E, ν).
-    Appends results to outcar_path in VASP format.
+    Derives Voigt, Reuss, and Hill polycrystalline averages (K, G, E, ν),
+    plus Hashin-Shtrikman shear-modulus bounds and midpoint. Appends results
+    to outcar_path in VASP format.
 
     Parameters
     ----------
@@ -126,16 +236,57 @@ def run_elastic(
     K_r, G_r = _reuss_averages(C_GPa)
     K_h = (K_v + K_r) / 2
     G_h = (G_v + G_r) / 2
+    G_hs_lower, G_hs_upper, G_hs_mid = _hashin_shtrikman_shear_bounds(C_GPa)
     E_h = 9 * K_h * G_h / (3 * K_h + G_h)
     nu_h = (3 * K_h - 2 * G_h) / (6 * K_h + 2 * G_h)
 
-    _print_elastic_summary(C_GPa, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h)
-    _append_elastic_outcar(outcar_path, C_GPa, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h)
+    _print_elastic_summary(
+        C_GPa,
+        K_v,
+        G_v,
+        K_r,
+        G_r,
+        K_h,
+        G_h,
+        G_hs_lower,
+        G_hs_upper,
+        G_hs_mid,
+        E_h,
+        nu_h,
+    )
+    _append_elastic_outcar(
+        outcar_path,
+        C_GPa,
+        K_v,
+        G_v,
+        K_r,
+        G_r,
+        K_h,
+        G_h,
+        G_hs_lower,
+        G_hs_upper,
+        G_hs_mid,
+        E_h,
+        nu_h,
+    )
     print(f"[done] Elastic constants appended to {outcar_path}.")
     return C_GPa
 
 
-def _print_elastic_summary(C, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h):
+def _print_elastic_summary(
+    C,
+    K_v,
+    G_v,
+    K_r,
+    G_r,
+    K_h,
+    G_h,
+    G_hs_lower,
+    G_hs_upper,
+    G_hs_mid,
+    E_h,
+    nu_h,
+):
     header = "  ".join(f"{label:>8}" for label in _ASE_LABELS)
     print("\n Elastic tensor (GPa) — ASE Voigt ordering: xx yy zz yz xz xy")
     print(f" {'':8s}  {header}")
@@ -149,9 +300,27 @@ def _print_elastic_summary(C, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h):
         f" Hill:   K = {K_h:7.2f} GPa   G = {G_h:7.2f} GPa   "
         f"E = {E_h:7.2f} GPa   ν = {nu_h:.4f}"
     )
+    print(
+        f" Hashin-Shtrikman G: lower = {G_hs_lower:7.2f} GPa   "
+        f"upper = {G_hs_upper:7.2f} GPa   midpoint = {G_hs_mid:7.2f} GPa"
+    )
 
 
-def _append_elastic_outcar(outcar_path, C_GPa, K_v, G_v, K_r, G_r, K_h, G_h, E_h, nu_h):
+def _append_elastic_outcar(
+    outcar_path,
+    C_GPa,
+    K_v,
+    G_v,
+    K_r,
+    G_r,
+    K_h,
+    G_h,
+    G_hs_lower,
+    G_hs_upper,
+    G_hs_mid,
+    E_h,
+    nu_h,
+):
     """Append elastic tensor and polycrystalline moduli to OUTCAR in VASP format."""
     # Reorder C from ASE Voigt to VASP Voigt: [0,1,2,5,3,4]
     p = _TO_VASP
@@ -182,4 +351,9 @@ def _append_elastic_outcar(outcar_path, C_GPa, K_v, G_v, K_r, G_r, K_h, G_h, E_h
         f.write(f"  {'Voigt':<10s}{K_v:>16.3f}{G_v:>16.3f}{'':>14s}{'':>14s}\n")
         f.write(f"  {'Reuss':<10s}{K_r:>16.3f}{G_r:>16.3f}{'':>14s}{'':>14s}\n")
         f.write(f"  {'Hill':<10s}{K_h:>16.3f}{G_h:>16.3f}{E_h:>14.3f}{nu_h:>14.4f}\n")
+        f.write(
+            "  Hashin-Shtrikman shear modulus (GPa): "
+            f"lower = {G_hs_lower:.3f}  upper = {G_hs_upper:.3f}  "
+            f"midpoint = {G_hs_mid:.3f}\n"
+        )
         f.write("\n")
