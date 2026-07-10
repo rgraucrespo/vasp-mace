@@ -239,13 +239,15 @@ The elastic tensor, together with Voigt, Reuss, Hill, and Hashin-Shtrikman polyc
   XX       2469.846     877.267     877.267       0.000       0.000       0.000
   ...
 
- POLYCRYSTALLINE CONSTANTS (Voigt / Reuss / Hill):
-               Bulk modulus K  Shear modulus G  Young mod. E  Poisson ratio
-                        (GPa)           (GPa)         (GPa)
-  Voigt              140.813         102.442
-  Reuss              140.813          98.784
-  Hill               140.813         100.613       243.779        0.2115
-  Hashin-Shtrikman shear modulus (GPa): lower = 99.842  upper = 101.441  midpoint = 100.641
+ POLYCRYSTALLINE ELASTIC MODULI (GPa)
+  Approximation                     K (GPa)     G (GPa)     E (GPa)   Poisson ν
+  ----------------------------------------------------------------------------
+  Voigt                              140.813     102.442     247.344      0.2072
+  Reuss                              140.813      98.784     240.186      0.2157
+  Hill                               140.813     100.613     243.778      0.2115
+  Hashin-Shtrikman lower             140.813     100.504     243.565      0.2117
+  Hashin-Shtrikman upper             140.813     100.790     244.124      0.2111
+  Hashin-Shtrikman midpoint          140.813     100.647     243.844      0.2114
 ```
 
 A human-readable summary is also printed to stdout (GPa, ASE Voigt ordering xx yy zz yz xz xy).
@@ -265,7 +267,7 @@ The polycrystalline averages follow the Voigt–Reuss–Hill scheme ([de Jong et
 
 These expressions are valid for all crystal systems (cubic to triclinic).
 
-The Hashin-Shtrikman shear bounds use isotropic comparison tensors for a randomly oriented polycrystal; their arithmetic mean is also reported.
+The Hashin-Shtrikman shear bounds use isotropic comparison tensors for a randomly oriented polycrystal. Each approximation is presented with its derived Young's modulus and Poisson ratio.
 
 > **Internal strain tensor**: not computed (vasp-mace computes the macroscopic elastic tensor only).
 

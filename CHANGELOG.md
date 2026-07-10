@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-07-10
+
 ### Added
 - Elastic-property output now includes lower and upper Hashin-Shtrikman shear
-  modulus bounds and their midpoint in both stdout and `OUTCAR`.
+  modulus bounds, their midpoint, and the corresponding Poisson ratios in both
+  stdout and `OUTCAR`, in a single polycrystalline-moduli table shared with the
+  Voigt, Reuss, and Hill approximations.
 
 ## [2.8.0] - 2026-06-30
 
@@ -325,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.9.0...HEAD
+[2.9.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.0...v2.6.1
