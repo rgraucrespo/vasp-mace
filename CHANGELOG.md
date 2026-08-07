@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`ase>=3.24,<4`) is unchanged. Verified against both ASE 3.28.0 and 3.29.0.
 
 ### Added
-- `docs/hpc-install.md`: an installation guide for shared HPC clusters, written
+- `HPC-INSTALL.md`: an installation guide for shared HPC clusters, written
   around a verified UCL Young setup and generalised to other sites. Covers the
   four failure modes that break a plain `pip install vasp-mace` there —
   compiler variables leaking in from the module system, wheel/platform tag

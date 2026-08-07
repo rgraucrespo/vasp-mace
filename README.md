@@ -77,7 +77,7 @@ pip install vasp-mace
 > again before using vasp-mace.
 
 Installing on a shared HPC cluster? Those systems need extra care — see
-[docs/hpc-install.md](docs/hpc-install.md) for a worked setup and fixes for the
+[HPC-INSTALL.md](HPC-INSTALL.md) for a worked setup and fixes for the
 common failures.
 
 ### Step 2 — Download a MACE model (required)

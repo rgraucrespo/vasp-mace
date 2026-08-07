@@ -1,6 +1,6 @@
 # Installing vasp-mace on a shared HPC cluster
 
-The [README installation steps](../README.md#installation) assume a machine you
+The [README installation steps](README.md#installation) assume a machine you
 control — a laptop, or a workstation with a GPU. On a shared HPC cluster, three
 things are different, and each one can turn `pip install vasp-mace` into a wall
 of compiler errors:
@@ -60,7 +60,7 @@ vasp-mace --help
 ```
 
 Then download a model and set `MACE_MODEL_PATH` as described under
-[Model checkpoint](../README.md#model-checkpoint) — put the `.model` file on
+[Model checkpoint](README.md#model-checkpoint) — put the `.model` file on
 Scratch rather than in your quota-limited home:
 
 ```bash
