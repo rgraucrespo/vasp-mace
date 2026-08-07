@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-08-07
+
 ### Changed
 - Rewrote the README Installation section for non-expert users: three clearly
   numbered steps (install, download a model, check it works), an
@@ -348,7 +350,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `example01_MgO`: variable-cell relaxation of MgO rock-salt structure.
 - `example02_hBN_D3-dispersion`: variable-cell relaxation of h-BN with D3(BJ) dispersion.
 
-[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.9.0...HEAD
+[Unreleased]: https://github.com/rgraucrespo/vasp-mace/compare/v2.9.1...HEAD
+[2.9.1]: https://github.com/rgraucrespo/vasp-mace/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.8.0...v2.9.0
 [2.8.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/rgraucrespo/vasp-mace/compare/v2.6.1...v2.7.0
