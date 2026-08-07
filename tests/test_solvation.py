@@ -210,5 +210,35 @@ class SolvationIncarTests(unittest.TestCase):
                 parse_incar(_write_incar(Path(td), "LSOL = .TRUE.\nEB_K = 0.5\n"))
 
 
+class SolvationCalcWiringTests(unittest.TestCase):
+    """`_make_solvation_calc` collapses EB_K<=1 to a nonpolar-only calculator."""
+
+    def test_eb_k_one_disables_polar_branch(self) -> None:
+        from vasp_mace.mace_loader import _make_solvation_calc
+
+        # EB_K = 1 means no dielectric contrast: the polar Generalized-Born term
+        # must be fully disabled (eb_k -> None), so the calculator never calls
+        # eeq_charges/dftd4. Verify on a slab that evaluating energy works even
+        # without dftd4 installed.
+        calc = _make_solvation_calc(tau=0.525, eb_k=1.0)
+        self.assertIsNone(calc.eb_k)
+        slab = fcc111("Cu", size=(1, 1, 3), vacuum=8.0)
+        slab.calc = calc
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertTrue(np.isfinite(slab.get_potential_energy()))
+
+    def test_nonunity_eb_k_keeps_polar_branch(self) -> None:
+        from vasp_mace.mace_loader import _make_solvation_calc
+
+        calc = _make_solvation_calc(tau=0.525, eb_k=78.4)
+        self.assertEqual(calc.eb_k, 78.4)
+
+    def test_explicit_none_stays_none(self) -> None:
+        from vasp_mace.mace_loader import _make_solvation_calc
+
+        self.assertIsNone(_make_solvation_calc(tau=0.525, eb_k=None).eb_k)
+
+
 if __name__ == "__main__":
     unittest.main()

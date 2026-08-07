@@ -64,19 +64,25 @@ def main() -> None:
 
 def _run() -> None:
     ap = argparse.ArgumentParser(description="Minimal VASP-like MACE simulator")
-    DEFAULT_MODEL = os.environ.get(
-        "MACE_MODEL_PATH",
-        os.path.expanduser("~/software/mace/2024-01-07-mace-128-L2_epoch-199.model"),
-    )
+    DEFAULT_MODEL = os.environ.get("MACE_MODEL_PATH")
     ap.add_argument(
         "--model",
         default=DEFAULT_MODEL,
-        help=f"Path to MACE .model checkpoint (default: {DEFAULT_MODEL} or $MACE_MODEL_PATH)",
+        help="Path to MACE .model checkpoint "
+        "(default: the MACE_MODEL_PATH environment variable)",
     )
     ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda", "mps"])
     ap.add_argument("--dtype", default="auto", choices=["auto", "float32", "float64"])
     ap.add_argument("--optimizer", default="BFGS", choices=["BFGS", "FIRE", "LBFGS"])
     args = ap.parse_args()
+
+    if not args.model:
+        ap.error(
+            "no MACE model specified. Set the MACE_MODEL_PATH environment "
+            "variable to your .model file, or pass --model "
+            "/full/path/to/your.model. See the 'Model checkpoint' section of "
+            "the README for how to download one."
+        )
 
     cfg = parse_incar("INCAR")
 

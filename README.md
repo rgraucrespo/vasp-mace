@@ -57,20 +57,56 @@ Whatever brings you here, enjoy `vasp-mace`.
 
 ## Installation
 
+vasp-mace runs inside a conda environment. If you don't already have conda,
+install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) first.
+
+There are three steps: (1) install the program, (2) download a model file, and
+(3) check it works.
+
+### Step 1 — Install vasp-mace
+
+Run these three lines once:
+
 ```bash
 conda create -n vasp_mace_env python=3.11 -y
 conda activate vasp_mace_env
 pip install vasp-mace
-pip install torch-dftd              # optional, only needed for IVDW = 11/12 (D3)
-pip install dftd4                   # optional, only needed for IVDW = 13 (D4) or LSOL (solvation)
-pip install "vasp-mace[phonons]"    # optional, only needed for IBRION = 6
 ```
 
-> **DFT-D3 dispersion** (`IVDW = 11/12` in INCAR) is provided by [`torch-dftd`](https://github.com/pfnet-research/torch-dftd). The package is pip-installable and not pulled in by default — install it only if you need D3. The xc functional is fixed to PBE.
+> **Every time you open a new terminal**, run `conda activate vasp_mace_env`
+> again before using vasp-mace.
 
-> **DFT-D4 dispersion** (`IVDW = 13`) and **implicit solvation** (`LSOL = .TRUE.`) are provided by the Fortran-backed [`dftd4`](https://github.com/dftd4/dftd4) package (it supplies both the D4 dispersion and the EEQ charges the solvation model uses). Install with `pip install dftd4`; from a source checkout the pin is in `requirements/dftd4.txt`.
+### Step 2 — Download a MACE model (required)
 
-> **Symmetry-reduced phonons** (`IBRION = 6`) require [`phonopy`](https://phonopy.github.io/phonopy/). Install via `pip install "vasp-mace[phonons]"` or `pip install phonopy`. Without it, `IBRION = 6` falls back to `IBRION = 5` (no symmetry reduction).
+vasp-mace cannot run without a pretrained MACE model file. Download one and tell
+vasp-mace where it is — follow [Model checkpoint](#model-checkpoint) below. This
+step is required, not optional.
+
+### Step 3 — Check it worked
+
+```bash
+vasp-mace --help
+```
+
+If you see a short usage message, the installation is ready. To run a
+calculation, go to a folder containing an `INCAR` and `POSCAR` and type
+`vasp-mace` (see [Usage](#usage)).
+
+### Optional add-ons (install only if you need them)
+
+These are each needed for **one** feature only. You can install them later, at
+any time, into the same environment (remember to `conda activate vasp_mace_env`
+first):
+
+| Install command | Needed for |
+| --- | --- |
+| `pip install torch-dftd` | DFT-D3 dispersion (`IVDW = 11` or `12` in the INCAR) |
+| `pip install dftd4` | DFT-D4 dispersion (`IVDW = 13`) **and** implicit solvation (`LSOL = .TRUE.`) |
+| `pip install "vasp-mace[phonons]"` | Symmetry-reduced phonons (`IBRION = 6`). Without it, `IBRION = 6` automatically falls back to `IBRION = 5`. |
+
+Notes: the dispersion xc functional is always PBE; `dftd4` also provides the EEQ
+charges the solvation model uses (from a source checkout its pin is in
+`requirements/dftd4.txt`). The heat-flux backend is a separate install, below.
 
 ### Optional heat-flux backend
 
@@ -104,17 +140,28 @@ pip install torch-dftd   # optional, only needed for IVDW > 0
 
 ### Model checkpoint
 
-Download a pretrained MACE model checkpoint, for example:
+vasp-mace uses a pretrained MACE "foundation" model — a single `.model` file
+that contains the machine-learning potential. Download one (this example is
+MACE-MP-0, which covers the whole periodic table):
 
 ```bash
 wget https://github.com/ACEsuit/mace-foundations/releases/download/mace_mp_0/2024-01-07-mace-128-L2_epoch-199.model
 ```
 
-Point `vasp-mace` to it by setting the environment variable (e.g. in your `.bashrc` or `.zshrc`):
+Then tell vasp-mace where the file is. The easiest way is to set the
+`MACE_MODEL_PATH` environment variable to the **full path** of the file you just
+downloaded:
 
 ```bash
-export MACE_MODEL_PATH=/path/to/2024-01-07-mace-128-L2_epoch-199.model
+export MACE_MODEL_PATH=/full/path/to/2024-01-07-mace-128-L2_epoch-199.model
 ```
+
+To make this permanent (so you don't retype it in every new terminal), add that
+same `export` line to the end of your `~/.bashrc` (or `~/.zshrc`) file.
+
+> If you don't set `MACE_MODEL_PATH`, you must pass the file on each run with
+> `vasp-mace --model /full/path/to/your.model`. If neither is provided,
+> vasp-mace stops with an error telling you no model was found.
 
 ---
 

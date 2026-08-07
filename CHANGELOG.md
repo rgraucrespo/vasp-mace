@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Rewrote the README Installation section for non-expert users: three clearly
+  numbered steps (install, download a model, check it works), an
+  "install only if you need them" table for the optional dispersion/solvation/
+  phonon backends, and a plainer Model-checkpoint walkthrough.
+
+### Fixed
+- The CLI no longer falls back to a hardcoded personal model path when
+  `MACE_MODEL_PATH` is unset and `--model` is omitted. It now exits with a clear
+  message telling the user to set `MACE_MODEL_PATH` or pass `--model`, instead of
+  failing later with a confusing "file not found" for a path the user never
+  chose. `vasp-mace --help` no longer prints that personal path.
+- `EB_K = 1` (no dielectric contrast) now genuinely disables the polar
+  Generalized-Born solvation term instead of computing it and multiplying by a
+  zero prefactor. Previously the polar branch still ran `eeq_charges`, so
+  `LSOL=.TRUE.` with `EB_K=1` (nonpolar-only) failed with a hard error on
+  installs without the optional `dftd4` package. `_make_solvation_calc` now
+  collapses `EB_K <= 1` to the nonpolar-only path.
+
 ## [2.9.0] - 2026-07-10
 
 ### Added

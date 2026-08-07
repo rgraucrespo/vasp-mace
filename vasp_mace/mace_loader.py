@@ -202,9 +202,19 @@ def _make_d4_calc() -> Any:
 
 
 def _make_solvation_calc(tau: float, eb_k: Optional[float]) -> Any:
-    """Return a ``SolvationCalculator`` (nonpolar SASA + optional polar GB)."""
+    """Return a ``SolvationCalculator`` (nonpolar SASA + optional polar GB).
+
+    ``EB_K <= 1`` means "no dielectric contrast", i.e. the polar Generalized-Born
+    term is disabled. Collapse it to ``None`` here so the calculator truly skips
+    the polar branch: otherwise it would still call ``eeq_charges`` (which
+    hard-requires the optional ``dftd4`` package) only to multiply the result by
+    a zero prefactor, breaking nonpolar-only solvation on installs without
+    ``dftd4``.
+    """
     from .solvation import SolvationCalculator
 
+    if eb_k is not None and eb_k <= 1.0:
+        eb_k = None
     return SolvationCalculator(tau=tau, eb_k=eb_k)
 
 
