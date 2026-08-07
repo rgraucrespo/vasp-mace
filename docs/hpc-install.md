@@ -236,11 +236,11 @@ usable wheel tags, and a `--dry-run` — and `echo "CC=$CC CXX=$CXX"` from
 failure 1. Between them they predict which of the four failures you are about
 to hit.
 
-One decision does not carry over: **`pytorch-cpu`**. Young has no GPUs, so the
-CPU build is correct there and avoids pulling roughly 2.5 GB of unusable CUDA
-libraries into a quota-limited home directory. On a GPU cluster you want a
-CUDA build matched to the site's driver — consult your local documentation
-rather than copying step 4 verbatim.
+One decision does not carry over: **`pytorch-cpu`**. It is the right choice for
+Young's standard CPU nodes and avoids pulling roughly 2.5 GB of CUDA libraries
+into a quota-limited home directory. If you are targeting GPU nodes — on Young
+or anywhere else — you need a CUDA build instead; see
+[GPU nodes](#gpu-nodes-unverified) below.
 
 ---
 
@@ -254,8 +254,8 @@ bundled inside torch at runtime.
 #!/bin/bash -l
 #$ -N vasp-mace
 #$ -l h_rt=2:00:00
-#$ -l mem=4G
-#$ -pe smp 8
+#$ -l mem=4G                        # PER CORE on Young, not total
+#$ -pe mpi 40                       # whole node: Young CPU nodes are 40 cores
 #$ -cwd
 
 module purge
@@ -278,3 +278,63 @@ On Slurm, replace the `#$` block with the `#SBATCH` equivalent and use
 Leaving `OMP_NUM_THREADS` unset lets torch spawn one thread per physical core
 on the node, including cores allocated to other users' jobs — it is worth
 setting explicitly.
+
+### Rejected at submission
+
+A job that never reaches the queue is a resource-request problem, not an
+environment one. Young's submit-time policy verifier produces:
+
+```
+Unable to run job: Rejected by policyjsv
+Reason:Unable to find a place to run this job 1hrs, 1 cores, 1GB per core ( 1GB total)
+```
+
+Read the numbers back: `1 cores, 1GB per core` means the script requested
+**neither** `-pe` nor `-l mem`, so SGE defaulted to one core with 1 GB, and
+Young has nowhere to put that. Two Young-specific rules cause most of these:
+
+- **CPU nodes are 40 cores and are never shared.** Request whole nodes
+  (`-pe mpi 40`, or multiples of 40). Asking for fewer still occupies the whole
+  node with the rest idle.
+- **`-l mem` is per core, not total.** `mem=4G` with 40 cores is 160 GB. The
+  practical ceiling on standard nodes is about 4.6 GB per core.
+
+If the job runs interactively on the login node but is rejected at submission,
+the environment is fine — look only at the `#$` block.
+
+### GPU nodes (unverified)
+
+> **This section is untested.** Everything above was verified end to end on
+> Young; the GPU path was not. Treat it as a starting point, not a recipe.
+
+Young has six GPU nodes (64 AMD EPYC cores, 8×A100 each), submitted as Free
+jobs with `-l gpu=<1-8>` and the `ppn=` parallel environment. See UCL's
+[Young GPU Nodes](https://www.rc.ucl.ac.uk/docs/Supplementary/Young_GPU_Nodes/)
+documentation for the authoritative syntax.
+
+The part that matters for vasp-mace: **the CPU environment from the quick start
+cannot use a GPU.** `vasp_mace/mace_loader.py` resolves `--device auto` through
+`torch.cuda.is_available()`, so with `pytorch-cpu` installed it selects CPU and
+prints `device=cpu` — no error, just a job that ignores the GPU it was
+allocated. Always confirm from the job's own output, never the login node:
+
+```bash
+python -c "import torch; print('cuda:', torch.cuda.is_available())"
+```
+
+Swapping in a CUDA build is where this gets awkward, and it is unresolved:
+
+- conda gates CUDA builds behind the `__cuda` virtual package, derived from the
+  NVIDIA driver. **Young's login node has no driver**, so every `cuda*` build is
+  filtered out and the solver reports `pytorch-gpu is not installable because
+  there are no viable options`. `CONDA_OVERRIDE_CUDA=12.9` bypasses the check,
+  or install from an interactive GPU session where the driver is visible.
+- **Do not reach for `conda remove pytorch-cpu --force`** to unstick the solver.
+  On this env it left `conda list` reporting `pytorch 2.13.0` while
+  `import torch` failed with `No module named torch` — conda's metadata and the
+  filesystem disagreeing. `conda install --force-reinstall pytorch` is the
+  repair; `conda list --revisions` plus `conda install --revision N` rolls back.
+
+Given the CPU nodes work today, the low-risk order is: get jobs running on CPU
+first, and treat the GPU swap as a separate experiment in a throwaway clone of
+the environment (`conda create -n vasp_mace_gpu --clone vasp_mace_env`).

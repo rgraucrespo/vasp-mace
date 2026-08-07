@@ -22,8 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compiler variables leaking in from the module system, wheel/platform tag
   mismatches that silently trigger source builds, the sdist-only
   `python-hostlist` dependency of `mace-torch`, and stale editable installs
-  that suppress the `bin/vasp-mace` launcher — plus a job-script preamble.
-  Linked from the README Installation section.
+  that suppress the `bin/vasp-mace` launcher — plus job-script guidance
+  covering submit-time rejections and an explicitly unverified section on GPU
+  nodes. Linked from the README Installation section.
 
 ## [2.9.1] - 2026-08-07
 
