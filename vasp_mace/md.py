@@ -22,13 +22,20 @@ from typing import Any, List, Optional
 import numpy as np
 from ase import Atoms
 from ase.md.md import MolecularDynamics
-from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.md.verlet import VelocityVerlet
 from ase.md.langevin import Langevin
 from ase.md.andersen import Andersen
 from ase.md.nose_hoover_chain import NoseHooverChainNVT
 from ase.io.trajectory import Trajectory
 from ase.units import fs as ASE_FS, kB, GPa
+
+try:
+    # ASE >= 3.29 supersedes MaxwellBoltzmannDistribution with thermalize_momenta
+    from ase.md.velocitydistribution import thermalize_momenta
+except ImportError:  # ASE < 3.29
+    from ase.md.velocitydistribution import (
+        MaxwellBoltzmannDistribution as thermalize_momenta,
+    )
 
 from .types_ import IncarConfig, MDRecord
 from .io_vasp import (
@@ -378,7 +385,7 @@ def run_md(
     )
     if not has_initial_velocities:
         # Initialise velocities from Maxwell-Boltzmann at TEBEG
-        MaxwellBoltzmannDistribution(atoms, temperature_K=T_start, rng=rng)
+        thermalize_momenta(atoms, temperature_K=T_start, rng=rng)
 
     # Create integrator
     if cfg.MDALGO == 1:

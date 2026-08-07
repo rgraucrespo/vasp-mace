@@ -76,6 +76,10 @@ pip install vasp-mace
 > **Every time you open a new terminal**, run `conda activate vasp_mace_env`
 > again before using vasp-mace.
 
+Installing on a shared HPC cluster? Those systems need extra care — see
+[docs/hpc-install.md](docs/hpc-install.md) for a worked setup and fixes for the
+common failures.
+
 ### Step 2 — Download a MACE model (required)
 
 vasp-mace cannot run without a pretrained MACE model file. Download one and tell

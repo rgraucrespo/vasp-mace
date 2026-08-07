@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- MD velocity initialisation now calls ASE's `thermalize_momenta` where it is
+  available. ASE 3.29.0 added that function and deprecated
+  `MaxwellBoltzmannDistribution`, which emitted a `DeprecationWarning` on every
+  MD run under a current ASE. `thermalize_momenta` does not exist in ASE
+  3.24-3.28, so the import falls back to the old name and the supported range
+  (`ase>=3.24,<4`) is unchanged. Verified against both ASE 3.28.0 and 3.29.0.
+
+### Added
+- `docs/hpc-install.md`: an installation guide for shared HPC clusters, written
+  around a verified UCL Young setup and generalised to other sites. Covers the
+  four failure modes that break a plain `pip install vasp-mace` there —
+  compiler variables leaking in from the module system, wheel/platform tag
+  mismatches that silently trigger source builds, the sdist-only
+  `python-hostlist` dependency of `mace-torch`, and stale editable installs
+  that suppress the `bin/vasp-mace` launcher — plus a job-script preamble.
+  Linked from the README Installation section.
+
 ## [2.9.1] - 2026-08-07
 
 ### Changed
