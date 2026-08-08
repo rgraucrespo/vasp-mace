@@ -1,8 +1,8 @@
 # vasp-mace
 
-**VASP-like interface for structure relaxation, molecular dynamics, and energy calculations using MACE machine-learning potentials**
+**VASP-like interface for energy calculations, structure relaxation, molecular dynamics, phonons, etc. using MACE machine-learning potentials**
 
-`vasp-mace` emulates VASP for fast, low-cost atomistic simulations using pretrained MACE interatomic potentials, with optional empirical dispersion corrections (DFT-D3).
+`vasp-mace` emulates VASP for fast, low-cost atomistic simulations using pretrained MACE interatomic potentials, with optional empirical dispersion corrections (DFT-D).
 It reads VASP-style inputs (`POSCAR`, `INCAR`) and produces VASP-compatible outputs (`CONTCAR`, `OUTCAR`, `OSZICAR`, `XDATCAR`, `vasprun.xml`), enabling seamless integration with existing VASP workflows and post-processing tools.
 
 ---
@@ -26,7 +26,7 @@ See [NOTICE.md](NOTICE.md) for the repository-level notice.
 - **Single-point** energy, force, and stress evaluation (`NSW = 0`)
 - **Geometry relaxation** of atomic positions and/or unit cell, driven by MACE potentials
 - **Molecular dynamics** (NVE, NVT Langevin/Nosé-Hoover/Andersen, NPT Langevin) with XDATCAR output
-- **Heat flux for Green-Kubo** (`ML_LHEAT = .TRUE.`): per-step VASP-compatible `ML_HEAT` from fixed-cell NVE MACE MD via the unfolded-cell autograd backend (`mace-unfolded`); for 3D bulk solids only. Post-process with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for thermal conductivity
+- **Heat flux for Green-Kubo** (`ML_LHEAT = .TRUE.`): per-step VASP-compatible `ML_HEAT` from fixed-cell NVE MACE MD via the unfolded-cell autograd backend (`mace-unfolded`); for 3D bulk solids only. Post-process (e.g. with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898) for thermal conductivity
 - **Nudged Elastic Band (NEB)**: minimum-energy path and transition-state search via ASE's MDMin optimizer; optional climbing-image NEB (`LCLIMB = .TRUE.`, VTST convention)
 - **Phonon calculations**: Γ-point force constants and frequencies via finite differences (`IBRION = 5`); symmetry-reduced displacements via phonopy (`IBRION = 6`), with VASP-compatible `DYNMAT` and `OUTCAR` output
 - **Elastic constants**: full 6×6 elastic tensor, Voigt/Reuss/Hill averages (K, G, E, ν), and Hashin-Shtrikman shear bounds via stress-strain finite differences — triggered by `ISIF ≥ 3` alongside `IBRION = 5/6`
