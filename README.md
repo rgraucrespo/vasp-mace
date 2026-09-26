@@ -569,13 +569,13 @@ Ready-to-run examples are provided in the `examples/` directory. Copy an example
 |---------|--------|-------------|
 | `example01_MgO/` | MgO (rock salt, conventional cell) | Variable-cell relaxation (`ISIF = 3`), no dispersion |
 | `example02_hBN_D3-dispersion/` | h-BN (hexagonal) | Variable-cell relaxation with D3(BJ) dispersion (`IVDW = 12`) |
-| `example03_CsPbI3_MA_MD/` | Cs₆₃MA·PbI₃ perovskite (4×4×4, 327 atoms) | NVT Nosé-Hoover MD at 500 K with one methylammonium defect |
+| `example03_CsPbI3_MA_MD/` | Cs₆₃(MA)Pb₆₄I₁₉₂ perovskite (4×4×4, 327 atoms) | NVT Nosé-Hoover MD at 500 K with one methylammonium defect, with D3(BJ) dispersion (`IVDW = 12`) |
 | `example04_PbTe_pressure/` | PbTe (rock salt) | Variable-cell relaxation under 15 kBar target pressure (`PSTRESS = 15`) |
-| `example05_Si_NEB/` | Si (diamond cubic) | CI-NEB for Si interstitial migration (`LCLIMB = .TRUE.`, 4 intermediate images) |
-| `example06_Pt_NEB/` | Pt (fcc-001 surface) | CI-NEB for Pt adatom collective jump (`LCLIMB = .TRUE.`, 3 intermediate images) |
+| `example05_Si_NEB/` | Si (diamond cubic, 15 atoms) | CI-NEB for Si vacancy migration (`LCLIMB = .TRUE.`, 4 intermediate images) |
+| `example06_Pt_NEB/` | Pt (fcc-001 surface, 17 atoms) | Plain NEB for a Pt adatom exchange jump (3 intermediate images; add `LCLIMB = .TRUE.` for CI-NEB) |
 | `example07_PbTe_MD/` | PbTe (rock salt, 512 atoms) | Sequential NVT → NPT Langevin MD; per-species `LANGEVIN_GAMMA` and explicit `PMASS` |
 | `example08_PbTe_phonons/` | PbTe (rock salt, 8 atoms) | Phonon calculation with symmetry reduction (`IBRION = 6`, `NFREE = 2`). Requires `pip install phonopy` |
-| `example09_MgO_elastic/` | MgO (rock salt, 8 atoms) | Phonons + elastic tensor (`IBRION = 6`, `ISIF = 3`): full 6×6 C_ij with Voigt/Reuss/Hill averages appended to OUTCAR |
+| `example09_MgO_elastic/` | MgO (rock salt, 8 atoms) | Phonons + elastic tensor (`IBRION = 6`, `ISIF = 3`): full 6×6 C_ij with Voigt/Reuss/Hill averages and Hashin-Shtrikman bounds appended to OUTCAR |
 | `example10_heat_flux/` | PbTe (rock salt, 4×4×4, 512 atoms) | NVT equilibration input plus NVE production MD with `ML_LHEAT = .TRUE.`: writes a VASP-compatible `ML_HEAT` plus an `ML_HEAT.json` sidecar for downstream Green-Kubo analysis with [`sportran`](https://www.sciencedirect.com/science/article/abs/pii/S0010465522001898). Requires the optional heat-flux backend |
 | `example11_hBN_D4-dispersion/` | h-BN (hexagonal) | Variable-cell relaxation with D4 dispersion (`IVDW = 13`). Requires the optional `dftd4` backend |
 | `example12_PbS_100_solvation/` | PbS (100) slab | Implicit-solvation single-point (`LSOL = .TRUE.`, `EB_K = 80`), after the VASPsol `PbS_100` example. Requires the optional `dftd4` backend |
@@ -599,9 +599,10 @@ IVDW   = 12
 
 ### example03 — CsPbI₃ perovskite MD with methylammonium
 
-4×4×4 supercell (327 atoms) of cubic CsPbI₃ with one Cs site replaced by methylammonium (CH₃NH₃⁺). NVT Nosé-Hoover thermostat at 500 K.
+4×4×4 supercell (327 atoms: Cs₆₃Pb₆₄I₁₉₂ plus one CH₃NH₃) of cubic CsPbI₃ with one Cs site replaced by methylammonium (CH₃NH₃⁺). NVT Nosé-Hoover thermostat at 500 K, with D3(BJ) dispersion for the organic cation.
 
 ```
+IVDW   = 12
 IBRION = 0
 MDALGO = 2
 NSW    = 200
@@ -620,32 +621,35 @@ EDIFFG  = -0.01
 PSTRESS = 15
 ```
 
-### example05 — Si interstitial migration (CI-NEB)
+### example05 — Si vacancy migration (CI-NEB)
 
-4-image CI-NEB for a Si self-interstitial hop in the diamond cubic lattice. Intermediate images are provided as starting POSCARs (previously converged); IDPP interpolation is used automatically if they are absent.
+4-image CI-NEB for a nearest-neighbour vacancy hop in the diamond cubic lattice. The cell is the fcc-primitive form of a 2×2×2 diamond supercell (`a = 5.47 Å`, 327 Å³, 16 lattice sites) holding 15 Si atoms, so one site is vacant and a neighbouring atom migrates into it. The two endpoints are symmetry-equivalent (the reference outputs give −78.327 eV for both, with the barrier at image `02`). Intermediate images are provided as starting POSCARs (previously converged); IDPP interpolation is used automatically if they are absent.
 
 ```
 NSW    = 100
 EDIFFG = -0.01
 IBRION = 1
+POTIM  = 0.8
 ISIF   = 2
 IMAGES = 4
 SPRING = -5
 LCLIMB = .TRUE.
 ```
 
-### example06 — Pt adatom collective jump (CI-NEB)
+### example06 — Pt adatom exchange jump (NEB)
 
-3-image CI-NEB for a collective Pt adatom jump on the fcc-Pt(001) surface. Endpoint and intermediate POSCARs are provided.
+3-image NEB for a collective ("exchange") Pt adatom jump on the fcc-Pt(001) surface: the adatom inserts into the top layer while the layer atom it replaces is pushed out onto the terrace, so the two endpoints are again symmetry-equivalent (−94.694 eV in the reference outputs). Endpoint and intermediate POSCARs are provided.
+
+Unlike example05 this INCAR leaves `LCLIMB` at its default, so it runs plain NEB; add `LCLIMB = .TRUE.` to converge the saddle point itself with CI-NEB.
 
 ```
 NSW    = 100
 EDIFFG = -0.01
 IBRION = 1
+POTIM  = 0.8
 ISIF   = 2
 IMAGES = 3
 SPRING = -5
-LCLIMB = .TRUE.
 ```
 
 ### example07 — PbTe sequential NVT → NPT MD
@@ -686,7 +690,7 @@ bash run.sh --model /path/to/model
 
 ### example08 — PbTe phonon calculation (IBRION = 6)
 
-8-atom PbTe conventional cell. Symmetry-reduced phonon calculation: only 2 irreducible displacements are needed (vs. 48 for a brute-force IBRION = 5 run). Writes `DYNMAT`, `OUTCAR` (with frequencies and eigenvectors), `OSZICAR`, `XDATCAR`, `CONTCAR`, and `ase_files/phonopy_params.yaml`.
+8-atom PbTe conventional cell. Symmetry-reduced phonon calculation: only 4 displaced configurations are evaluated — 2 symmetry-inequivalent displacement directions (one per sublattice) with ± central differences — instead of the 48 of a brute-force IBRION = 5 run. Writes `DYNMAT`, `OUTCAR` (with frequencies and eigenvectors), `OSZICAR`, `XDATCAR`, `CONTCAR`, `ase_files/force_constants.npy`, and `ase_files/phonopy_params.yaml`.
 
 ```
 ISIF   = 0
@@ -695,6 +699,8 @@ NFREE  = 2
 POTIM  = 0.02
 NSW    = 1
 ```
+
+`ISIF = 0` is VASP's "no stress tensor" setting, kept here to match a typical VASP phonon INCAR; `vasp-mace` reports a warning and treats it as `ISIF = 2` (phonons only, no elastic tensor).
 
 Run with:
 
@@ -706,7 +712,7 @@ Requires `phonopy` for symmetry reduction: `pip install phonopy` or `pip install
 
 ### example09 — MgO phonons + elastic constants (IBRION = 6, ISIF = 3)
 
-8-atom MgO rock-salt conventional cell. Combines symmetry-reduced phonon calculation with elastic tensor computation. Phonopy reduces the phonon displacements from 48 to just 4, then 12 strain calculations (6 Voigt patterns × ±1%) yield the full 6×6 elastic tensor. The OUTCAR contains both phonon eigenvectors and the elastic tensor block with Voigt/Reuss/Hill averages.
+8-atom MgO rock-salt conventional cell. Combines symmetry-reduced phonon calculation with elastic tensor computation. Phonopy reduces the phonon displacements from 48 to just 4 (as in example08 — same rock-salt symmetry), then 12 strain calculations (6 Voigt patterns × ±1%) yield the full 6×6 elastic tensor. The OUTCAR contains both phonon eigenvectors and the elastic tensor block with the polycrystalline averages (Voigt/Reuss/Hill plus Hashin-Shtrikman bounds; the checked-in reference OUTCAR was generated before the Hashin-Shtrikman rows were added, so it lists Voigt/Reuss/Hill only).
 
 ```
 IBRION = 6     # phonons via symmetry-reduced finite differences
@@ -761,7 +767,7 @@ LSOL = .TRUE.
 EB_K = 80
 ```
 
-As a single-point solvation-energy check against the VASPsol reference (`OSZICAR.ref`):
+As a single-point solvation-energy check against the published VASPsol result for the same slab (the example ships the vasp-mace `OSZICAR`/`OUTCAR` only; the VASPsol numbers come from that package's own `examples/PbS_100` output):
 
 | | vacuum | solvated | ΔE_solv |
 |---|---|---|---|

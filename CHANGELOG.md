@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- README example descriptions corrected against the shipped example inputs:
+  `example05_Si_NEB` is a **vacancy** migration (15 Si atoms on 16 diamond
+  sites), not a self-interstitial hop, as also stated incorrectly in the 1.3.0
+  entry below; `example06_Pt_NEB` ships without `LCLIMB`, so it runs plain NEB
+  rather than CI-NEB (a note now says how to switch it on); `example03`'s
+  `IVDW = 12` (D3(BJ)) was missing from both its table row and its quoted
+  INCAR; `example08`'s symmetry reduction gives 4 displaced configurations
+  (2 inequivalent directions × central differences), not 2, matching the count
+  quoted for `example09`; `example09` also appends Hashin-Shtrikman bounds
+  alongside the Voigt/Reuss/Hill averages; and `example12` referred to an
+  `OSZICAR.ref` file that the example does not contain.
+
 ## [2.9.2] - 2026-08-07
 
 ### Changed
